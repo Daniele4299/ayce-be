@@ -3,6 +3,7 @@ package com.db.ayce.be.service.impl;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.db.ayce.be.entity.Utente;
@@ -13,9 +14,11 @@ import com.db.ayce.be.service.UtenteService;
 public class UtenteServiceImpl implements UtenteService {
 
     private final UtenteRepository repository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UtenteServiceImpl(UtenteRepository repository) {
+    public UtenteServiceImpl(UtenteRepository repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -35,11 +38,18 @@ public class UtenteServiceImpl implements UtenteService {
 
     @Override
     public Utente save(Utente utente) {
+        if (utente.getId() == null || !isPasswordEncoded(utente.getPassword())) {
+            utente.setPassword(passwordEncoder.encode(utente.getPassword()));
+        }
         return repository.save(utente);
     }
 
     @Override
     public void deleteById(Integer id) {
         repository.deleteById(id);
+    }
+
+    private boolean isPasswordEncoded(String password) {
+        return password != null && password.startsWith("$2");
     }
 }
