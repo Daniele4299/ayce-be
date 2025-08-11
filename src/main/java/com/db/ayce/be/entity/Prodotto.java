@@ -28,10 +28,11 @@ public class Prodotto {
     @Column(columnDefinition = "TEXT")
     private String descrizione;
 
-    @Column(name = "immagine_url", columnDefinition = "TEXT")
-    private String immagineUrl;
+    @Column(name = "immagine")
+    private byte[] immagine;
 
     private Double prezzo;
 
     private String tipo;
 }
+
