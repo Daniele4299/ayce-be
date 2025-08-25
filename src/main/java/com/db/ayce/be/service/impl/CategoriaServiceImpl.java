@@ -1,0 +1,42 @@
+package com.db.ayce.be.service.impl;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.db.ayce.be.entity.Categoria;
+import com.db.ayce.be.repository.CategoriaRepository;
+import com.db.ayce.be.service.CategoriaService;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class CategoriaServiceImpl implements CategoriaService {
+
+    private final CategoriaRepository categoriaRepository;
+
+    @Override
+    public List<Categoria> findAll() {
+        return categoriaRepository.findAll();
+    }
+
+    @Override
+    public Categoria findById(Long id) {
+        return categoriaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Categoria non trovata con id: " + id));
+    }
+
+    @Override
+    public Categoria save(Categoria categoria) {
+        return categoriaRepository.save(categoria);
+    }
+
+    @Override
+    public void delete(Long id) {
+        Categoria c = findById(id); // lancio eccezione se non esiste
+        categoriaRepository.delete(c);
+    }
+}

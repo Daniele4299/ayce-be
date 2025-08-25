@@ -6,9 +6,9 @@ import java.util.Optional;
 import com.db.ayce.be.entity.Utente;
 
 public interface UtenteService {
-    Optional<Utente> findById(Integer id);
+    Optional<Utente> findById(Long id);
     Optional<Utente> findByUsername(String username);
     List<Utente> findAll();
     Utente save(Utente utente);
-    void deleteById(Integer id);
+    void deleteById(Long id);
 }

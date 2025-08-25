@@ -29,7 +29,7 @@ public class OrdineController {
     }
 
     @GetMapping("/{id}")
-    public Ordine getOrdineById(@PathVariable Integer id) {
+    public Ordine getOrdineById(@PathVariable Long id) {
         return ordineService.findById(id);
     }
 
@@ -39,12 +39,12 @@ public class OrdineController {
     }
 
     @PutMapping("/{id}")
-    public Ordine updateOrdine(@PathVariable Integer id, @RequestBody Ordine ordine) {
+    public Ordine updateOrdine(@PathVariable Long id, @RequestBody Ordine ordine) {
         return ordineService.update(id, ordine);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteOrdine(@PathVariable Integer id) {
+    public void deleteOrdine(@PathVariable Long id) {
         ordineService.delete(id);
     }
 }

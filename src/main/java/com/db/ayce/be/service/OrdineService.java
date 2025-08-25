@@ -6,8 +6,8 @@ import com.db.ayce.be.entity.Ordine;
 
 public interface OrdineService {
     List<Ordine> findAll();
-    Ordine findById(Integer id);
+    Ordine findById(Long id);
     Ordine save(Ordine ordine);
-    Ordine update(Integer id, Ordine ordine);
-    void delete(Integer id);
+    Ordine update(Long id, Ordine ordine);
+    void delete(Long id);
 }

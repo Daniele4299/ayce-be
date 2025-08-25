@@ -5,9 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -16,12 +17,10 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Prodotto {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     private String nome;
 
@@ -33,6 +32,19 @@ public class Prodotto {
 
     private Double prezzo;
 
-    private String tipo;
-}
+    @ManyToOne
+    @JoinColumn(name = "categoria_id")
+    private Categoria categoria;
 
+    @Column(name = "is_pranzo", nullable = false)
+    private boolean isPranzo = true;
+
+    @Column(name = "is_cena", nullable = false)
+    private boolean isCena = true;
+
+    @Column(name = "is_ayce", nullable = false)
+    private boolean isAyce = true;
+
+    @Column(name = "is_carta", nullable = false)
+    private boolean isCarta = true;
+}

@@ -1,0 +1,17 @@
+package com.db.ayce.be.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import com.db.ayce.be.entity.UtenteProdotto;
+import com.db.ayce.be.entity.UtenteProdottoId;
+
+public interface UtenteProdottoRepository extends JpaRepository<UtenteProdotto, UtenteProdottoId> {
+    List<UtenteProdotto> findById_UtenteId(Long utenteId);
+    
+    @Query("SELECT up.id.prodottoId FROM UtenteProdotto up WHERE up.id.utenteId = :utenteId AND up.riceveComanda = true")
+    List<Integer> findProdottoIdsByUtenteIdAndRiceveComandaTrue(Long utenteId);
+
+}

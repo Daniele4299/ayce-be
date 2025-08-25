@@ -22,7 +22,7 @@ public class ProdottoServiceImpl implements ProdottoService {
     }
 
     @Override
-    public Prodotto findById(Integer id) {
+    public Prodotto findById(Long id) {
         return prodottoRepository.findById(id).orElse(null);
     }
 
@@ -32,13 +32,13 @@ public class ProdottoServiceImpl implements ProdottoService {
     }
 
     @Override
-    public Prodotto update(Integer id, Prodotto prodotto) {
+    public Prodotto update(Long id, Prodotto prodotto) {
         prodotto.setId(id);
         return prodottoRepository.save(prodotto);
     }
 
     @Override
-    public void delete(Integer id) {
+    public void delete(Long id) {
         prodottoRepository.deleteById(id);
     }
 }

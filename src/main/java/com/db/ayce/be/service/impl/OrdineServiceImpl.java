@@ -22,7 +22,7 @@ public class OrdineServiceImpl implements OrdineService {
     }
 
     @Override
-    public Ordine findById(Integer id) {
+    public Ordine findById(Long id) {
         return ordineRepository.findById(id).orElse(null);
     }
 
@@ -32,13 +32,13 @@ public class OrdineServiceImpl implements OrdineService {
     }
 
     @Override
-    public Ordine update(Integer id, Ordine ordine) {
+    public Ordine update(Long id, Ordine ordine) {
         ordine.setId(id);
         return ordineRepository.save(ordine);
     }
 
     @Override
-    public void delete(Integer id) {
+    public void delete(Long id) {
         ordineRepository.deleteById(id);
     }
 }

@@ -31,7 +31,7 @@ public class UtenteController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Utente> getById(@PathVariable Integer id) {
+    public ResponseEntity<Utente> getById(@PathVariable Long id) {
         return utenteService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -43,7 +43,7 @@ public class UtenteController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Utente> update(@PathVariable Integer id, @RequestBody Utente utente) {
+    public ResponseEntity<Utente> update(@PathVariable Long id, @RequestBody Utente utente) {
         return utenteService.findById(id)
                 .map(existing -> {
                     utente.setId(id);
@@ -53,7 +53,7 @@ public class UtenteController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Object> delete(@PathVariable Integer id) {
+    public ResponseEntity<Object> delete(@PathVariable Long id) {
         return utenteService.findById(id)
                 .map(u -> {
                     utenteService.deleteById(id);

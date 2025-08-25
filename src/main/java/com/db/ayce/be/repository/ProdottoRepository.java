@@ -4,5 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.db.ayce.be.entity.Prodotto;
 
-public interface ProdottoRepository extends JpaRepository<Prodotto, Integer> {
+public interface ProdottoRepository extends JpaRepository<Prodotto, Long> {
 }

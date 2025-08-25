@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.db.ayce.be.entity.Categoria;
 import com.db.ayce.be.entity.Prodotto;
+import com.db.ayce.be.service.CategoriaService;
 import com.db.ayce.be.service.ProdottoService;
 
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class ProdottoController {
 
     private final ProdottoService prodottoService;
+    private final CategoriaService categoriaService;
 
     @GetMapping
     public List<Prodotto> getAllProdotti() {
@@ -33,7 +36,7 @@ public class ProdottoController {
     }
 
     @GetMapping("/{id}")
-    public Prodotto getProdottoById(@PathVariable Integer id) {
+    public Prodotto getProdottoById(@PathVariable Long id) {
         return prodottoService.findById(id);
     }
 
@@ -42,40 +45,74 @@ public class ProdottoController {
             @RequestParam("nome") String nome,
             @RequestParam("descrizione") String descrizione,
             @RequestParam("prezzo") Double prezzo,
-            @RequestParam("tipo") String tipo,
-            @RequestParam("immagine") MultipartFile immagineFile
+            @RequestParam(value = "categoriaId", required = false) Long categoriaId,
+            @RequestParam(value = "isPranzo", defaultValue = "true") Boolean isPranzo,
+            @RequestParam(value = "isCena", defaultValue = "true") Boolean isCena,
+            @RequestParam(value = "isAyce", defaultValue = "true") Boolean isAyce,
+            @RequestParam(value = "isCarta", defaultValue = "true") Boolean isCarta,
+            @RequestParam(value = "immagine", required = false) MultipartFile immagineFile
     ) throws IOException {
         Prodotto p = new Prodotto();
         p.setNome(nome);
         p.setDescrizione(descrizione);
         p.setPrezzo(prezzo);
-        p.setTipo(tipo);
-        p.setImmagine(immagineFile.getBytes());
+
+        if (categoriaId != null) {
+            Categoria categoria = categoriaService.findById(categoriaId);
+            p.setCategoria(categoria);
+        }
+
+        p.setPranzo(isPranzo);
+        p.setCena(isCena);
+        p.setAyce(isAyce);
+        p.setCarta(isCarta);
+
+        if (immagineFile != null && !immagineFile.isEmpty()) {
+            p.setImmagine(immagineFile.getBytes());
+        }
+
         return prodottoService.save(p);
     }
 
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
     public Prodotto updateProdotto(
-            @PathVariable Integer id,
+            @PathVariable Long id,
             @RequestParam("nome") String nome,
             @RequestParam("descrizione") String descrizione,
             @RequestParam("prezzo") Double prezzo,
-            @RequestParam("tipo") String tipo,
+            @RequestParam(value = "categoriaId", required = false) Long categoriaId,
+            @RequestParam(value = "isPranzo", defaultValue = "true") Boolean isPranzo,
+            @RequestParam(value = "isCena", defaultValue = "true") Boolean isCena,
+            @RequestParam(value = "isAyce", defaultValue = "true") Boolean isAyce,
+            @RequestParam(value = "isCarta", defaultValue = "true") Boolean isCarta,
             @RequestParam(value = "immagine", required = false) MultipartFile immagineFile
     ) throws IOException {
         Prodotto p = prodottoService.findById(id);
         p.setNome(nome);
         p.setDescrizione(descrizione);
         p.setPrezzo(prezzo);
-        p.setTipo(tipo);
+
+        if (categoriaId != null) {
+            Categoria categoria = categoriaService.findById(categoriaId);
+            p.setCategoria(categoria);
+        } else {
+            p.setCategoria(null);
+        }
+
+        p.setPranzo(isPranzo);
+        p.setCena(isCena);
+        p.setAyce(isAyce);
+        p.setCarta(isCarta);
+
         if (immagineFile != null && !immagineFile.isEmpty()) {
             p.setImmagine(immagineFile.getBytes());
         }
+
         return prodottoService.save(p);
     }
 
     @GetMapping("/{id}/immagine")
-    public ResponseEntity<byte[]> getProdottoImage(@PathVariable Integer id) {
+    public ResponseEntity<byte[]> getProdottoImage(@PathVariable Long id) {
         Prodotto p = prodottoService.findById(id);
         if (p.getImmagine() == null) {
             return ResponseEntity.notFound().build();
@@ -86,7 +123,7 @@ public class ProdottoController {
     }
 
     @DeleteMapping("/{id}")
-    public void deleteProdotto(@PathVariable Integer id) {
+    public void deleteProdotto(@PathVariable Long id) {
         prodottoService.delete(id);
     }
 }

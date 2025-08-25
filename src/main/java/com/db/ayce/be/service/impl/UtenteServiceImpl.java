@@ -22,7 +22,7 @@ public class UtenteServiceImpl implements UtenteService {
     }
 
     @Override
-    public Optional<Utente> findById(Integer id) {
+    public Optional<Utente> findById(Long id) {
         return repository.findById(id);
     }
 
@@ -45,7 +45,7 @@ public class UtenteServiceImpl implements UtenteService {
     }
 
     @Override
-    public void deleteById(Integer id) {
+    public void deleteById(Long id) {
         repository.deleteById(id);
     }
 
