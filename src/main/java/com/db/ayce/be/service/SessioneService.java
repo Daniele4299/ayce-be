@@ -6,8 +6,8 @@ import com.db.ayce.be.entity.Sessione;
 
 public interface SessioneService {
     List<Sessione> findAll();
-    Sessione findById(Integer id);
+    Sessione findById(Long id);
     Sessione save(Sessione sessione);
-    Sessione update(Integer id, Sessione sessione);
-    void delete(Integer id);
+    Sessione update(Long id, Sessione sessione);
+    void delete(Long id);
 }

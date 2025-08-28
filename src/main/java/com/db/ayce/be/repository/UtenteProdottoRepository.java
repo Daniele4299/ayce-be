@@ -12,6 +12,9 @@ public interface UtenteProdottoRepository extends JpaRepository<UtenteProdotto, 
     List<UtenteProdotto> findById_UtenteId(Long utenteId);
     
     @Query("SELECT up.id.prodottoId FROM UtenteProdotto up WHERE up.id.utenteId = :utenteId AND up.riceveComanda = true")
-    List<Integer> findProdottoIdsByUtenteIdAndRiceveComandaTrue(Long utenteId);
+    List<Long> findProdottoIdsByUtenteIdAndRiceveComandaTrue(Long utenteId);
+    
+    @Query("SELECT up.id.prodottoId FROM UtenteProdotto up WHERE up.id.utenteId = :utenteId")
+    List<Long> findProdottoIdsByUtenteId(Long utenteId);
 
 }

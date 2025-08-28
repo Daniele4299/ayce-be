@@ -38,6 +38,22 @@ public class AuthenticationController {
         this.jwtService = jwtService;
         this.utenteRepository = utenteRepository;
     }
+    
+    @PostMapping("/login-guest")
+    public ResponseEntity<?> loginGuest(HttpServletResponse response) {
+        Utente guest = utenteRepository.findByUsername("guest")
+                .orElseThrow(() -> new RuntimeException("Utente guest non trovato"));
+
+        String token = jwtService.generateToken(guest);
+
+        Cookie cookie = new Cookie("token", token);
+        cookie.setHttpOnly(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(60 * 60); // 1 ora
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok().build();
+    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
@@ -90,4 +106,5 @@ public class AuthenticationController {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
+    
 }

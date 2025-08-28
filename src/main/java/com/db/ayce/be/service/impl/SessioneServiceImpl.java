@@ -22,7 +22,7 @@ public class SessioneServiceImpl implements SessioneService {
     }
 
     @Override
-    public Sessione findById(Integer id) {
+    public Sessione findById(Long id) {
         return sessioneRepository.findById(id).orElse(null);
     }
 
@@ -32,13 +32,13 @@ public class SessioneServiceImpl implements SessioneService {
     }
 
     @Override
-    public Sessione update(Integer id, Sessione sessione) {
+    public Sessione update(Long id, Sessione sessione) {
         sessione.setId(id);
         return sessioneRepository.save(sessione);
     }
 
     @Override
-    public void delete(Integer id) {
+    public void delete(Long id) {
         sessioneRepository.deleteById(id);
     }
 }

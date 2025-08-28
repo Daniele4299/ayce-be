@@ -62,10 +62,10 @@ public class ProdottoController {
             p.setCategoria(categoria);
         }
 
-        p.setPranzo(isPranzo);
-        p.setCena(isCena);
-        p.setAyce(isAyce);
-        p.setCarta(isCarta);
+        p.setIsPranzo(isPranzo);
+        p.setIsCena(isCena);
+        p.setIsAyce(isAyce);
+        p.setIsCarta(isCarta);
 
         if (immagineFile != null && !immagineFile.isEmpty()) {
             p.setImmagine(immagineFile.getBytes());
@@ -99,10 +99,10 @@ public class ProdottoController {
             p.setCategoria(null);
         }
 
-        p.setPranzo(isPranzo);
-        p.setCena(isCena);
-        p.setAyce(isAyce);
-        p.setCarta(isCarta);
+        p.setIsPranzo(isPranzo);
+        p.setIsCena(isCena);
+        p.setIsAyce(isAyce);
+        p.setIsCarta(isCarta);
 
         if (immagineFile != null && !immagineFile.isEmpty()) {
             p.setImmagine(immagineFile.getBytes());

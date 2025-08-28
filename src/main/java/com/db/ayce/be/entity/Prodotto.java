@@ -37,14 +37,14 @@ public class Prodotto {
     private Categoria categoria;
 
     @Column(name = "is_pranzo", nullable = false)
-    private boolean isPranzo = true;
+    private Boolean isPranzo = true;
 
     @Column(name = "is_cena", nullable = false)
-    private boolean isCena = true;
+    private Boolean isCena = true;
 
     @Column(name = "is_ayce", nullable = false)
-    private boolean isAyce = true;
+    private Boolean isAyce = true;
 
     @Column(name = "is_carta", nullable = false)
-    private boolean isCarta = true;
+    private Boolean isCarta = true;
 }

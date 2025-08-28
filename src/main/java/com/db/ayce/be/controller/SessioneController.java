@@ -29,7 +29,7 @@ public class SessioneController {
     }
 
     @GetMapping("/{id}")
-    public Sessione getSessioneById(@PathVariable Integer id) {
+    public Sessione getSessioneById(@PathVariable Long id) {
         return sessioneService.findById(id);
     }
 
@@ -39,12 +39,12 @@ public class SessioneController {
     }
 
     @PutMapping("/{id}")
-    public Sessione updateSessione(@PathVariable Integer id, @RequestBody Sessione sessione) {
+    public Sessione updateSessione(@PathVariable Long id, @RequestBody Sessione sessione) {
         return sessioneService.update(id, sessione);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteSessione(@PathVariable Integer id) {
+    public void deleteSessione(@PathVariable Long id) {
         sessioneService.delete(id);
     }
 }
