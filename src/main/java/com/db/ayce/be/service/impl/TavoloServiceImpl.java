@@ -41,4 +41,9 @@ public class TavoloServiceImpl implements TavoloService {
     public void delete(Integer id) {
         tavoloRepository.deleteById(id);
     }
+
+	@Override
+	public Tavolo findByNumero(Integer numero) {
+		return tavoloRepository.findByNumero(numero);
+	}
 }

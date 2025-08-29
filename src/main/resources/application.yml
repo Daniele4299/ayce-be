@@ -43,3 +43,7 @@ jwt:
 app:
   cors:
     allowed-origin: ${FE_URL}
+
+frontend:
+  url: ${FE_URL}
+

@@ -38,8 +38,7 @@ public class ComandeController {
 	public List<OrdineDto> getOrdiniFiltrati(
 	        @RequestParam(defaultValue = "true") boolean soloAssegnati,
 	        @RequestParam(defaultValue = "false") boolean nascondiConsegnati) {
-
-	    Utente utente = authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN, Constants.ROLE_DIPEN);
+		Utente utente = authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN,Constants.ROLE_DIPEN);
 	    return comandeService.getComandeFiltrate(utente.getId(), soloAssegnati, nascondiConsegnati);
 	}
 
@@ -49,7 +48,7 @@ public class ComandeController {
      */
     @PutMapping("/consegna/{id}")
     public OrdineDto updateOrdineConsegnato(@PathVariable Long id, @RequestBody OrdineDto ordineDto) {
-    	Utente utente = authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN, Constants.ROLE_DIPEN);
+    	Utente utente = authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN,Constants.ROLE_DIPEN);
     	return comandeService.updateOrdineConsegnato(id, ordineDto, utente);
 
     }

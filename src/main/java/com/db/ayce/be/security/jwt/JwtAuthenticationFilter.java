@@ -1,16 +1,22 @@
 package com.db.ayce.be.security.jwt;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.service.CustomUserDetailsService;
+import com.db.ayce.be.service.SessioneService;
+import com.db.ayce.be.utils.Constants;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,10 +27,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final SessioneService sessioneService;
 
-    public JwtAuthenticationFilter(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService, CustomUserDetailsService userDetailsService, SessioneService sessioneService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+		this.sessioneService = sessioneService;
     }
 
     @Override
@@ -44,49 +52,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (jwt == null) {
-            final String authHeader = request.getHeader("Authorization");
+            String authHeader = request.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 jwt = authHeader.substring(7);
             }
         }
 
-        if (jwt == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+        if (jwt != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            Claims claims = jwtService.extractAllClaims(jwt);
+            String role = claims.get("role", String.class);
+            
+            
 
-        final String username = jwtService.extractUsername(jwt);
+            if (Constants.ROLE_CLIENT.equals(role)) {
+                Long sessioneId = claims.get("sessioneId", Long.class);
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-
-                if (jwtService.isTokenValid(jwt, userDetails)) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                // Verifica che la sessione sia ancora attiva
+                Sessione sessione = sessioneService.findById(sessioneId);
+                if (sessione == null || !"ATTIVA".equals(sessione.getStato())) {
+                    // Non autenticare: sessione chiusa
+                    filterChain.doFilter(request, response);
+                    return;
                 }
 
-            } catch (org.springframework.security.core.userdetails.UsernameNotFoundException ex) {
-                // Utente non trovato: invalida cookie e rispondi 401
-                jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("token", null);
-                cookie.setHttpOnly(true);
-                cookie.setPath("/");
-                cookie.setMaxAge(0);
-                response.addCookie(cookie);
-
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Utente non trovato, autenticazione scaduta");
-                return;  // interrompi il filtro qui
+                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(claims, null, authorities);
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                String username = claims.getSubject();
+                if (username != null) {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    if (jwtService.isTokenValid(jwt, userDetails)) {
+                        var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                        UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    }
+                }
             }
         }
 
         filterChain.doFilter(request, response);
     }
-
 }

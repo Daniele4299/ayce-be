@@ -10,4 +10,5 @@ public interface TavoloService {
     Tavolo save(Tavolo tavolo);
     Tavolo update(Integer id, Tavolo tavolo);
     void delete(Integer id);
+    Tavolo findByNumero(Integer numero);
 }
