@@ -59,39 +59,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (jwt != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Claims claims = jwtService.extractAllClaims(jwt);
-            String role = claims.get("role", String.class);
-            
-            
+            try {
+                Claims claims = jwtService.extractAllClaims(jwt);
+                String role = claims.get("role", String.class);
 
-            if (Constants.ROLE_CLIENT.equals(role)) {
-                Long sessioneId = claims.get("sessioneId", Long.class);
-
-                // Verifica che la sessione sia ancora attiva
-                Sessione sessione = sessioneService.findById(sessioneId);
-                if (sessione == null || !"ATTIVA".equals(sessione.getStato())) {
-                    // Non autenticare: sessione chiusa
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(claims, null, authorities);
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            } else {
-                String username = claims.getSubject();
-                if (username != null) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    if (jwtService.isTokenValid(jwt, userDetails)) {
+                if (Constants.ROLE_CLIENT.equals(role)) {
+                    Long sessioneId = claims.get("sessioneId", Long.class);
+                    Sessione sessione = sessioneService.findById(sessioneId);
+                    if (sessione != null && "ATTIVA".equals(sessione.getStato())) {
                         var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
                         UsernamePasswordAuthenticationToken authToken =
-                                new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                            new UsernamePasswordAuthenticationToken(claims, null, authorities);
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
+                } else {
+                    String username = claims.getSubject();
+                    if (username != null) {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        if (jwtService.isTokenValid(jwt, userDetails)) {
+                            var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                            UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                            SecurityContextHolder.getContext().setAuthentication(authToken);
+                        }
+                    }
                 }
+            } catch (io.jsonwebtoken.ExpiredJwtException e) {
+                // Token scaduto → ignoralo, l'app prosegue come se non esistesse
             }
         }
 
