@@ -37,4 +37,7 @@ public class Sessione {
     private Boolean isAyce = false;
 
     private String stato;
+    
+    @Column(name = "ultimo_ordine_inviato", nullable = true)
+    private LocalDateTime ultimoOrdineInviato;
 }

@@ -8,8 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TavoloMessage {
-    private Long sessioneId;
-    private Integer tavoloId;
     private String tipoEvento; // ADD_ITEM_TEMP, REMOVE_ITEM_TEMP, UPDATE_TEMP, ORDER_SENT
     private String payload; // JSON string (TavoloMessagePayload o stato completo)
 }

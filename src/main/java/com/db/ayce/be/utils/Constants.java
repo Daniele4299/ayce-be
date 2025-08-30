@@ -27,4 +27,16 @@ public final class Constants {
         if (role == null) throw new IllegalArgumentException("Ruolo non valido per livello: " + livello);
         return role;
     }
+    
+    // Tipi messaggi WebSocket
+    public static final String MSG_ADD_ITEM_TEMP = "ADD_ITEM_TEMP";
+    public static final String MSG_REMOVE_ITEM_TEMP = "REMOVE_ITEM_TEMP";
+    public static final String MSG_UPDATE_TEMP = "UPDATE_TEMP";
+    public static final String MSG_ORDER_SENT = "ORDER_SENT";
+    public static final String MSG_ERROR = "ERROR";
+
+    // Limiti
+    public static final int MAX_PORTATE_PER_PERSONA = 5;
+    public static final int COOLDOWN_MINUTI_ORDINE = 15;
+
 }

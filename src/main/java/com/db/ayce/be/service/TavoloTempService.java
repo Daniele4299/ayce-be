@@ -1,31 +1,42 @@
 package com.db.ayce.be.service;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
 @Service
 public class TavoloTempService {
 
-    // Stato temporaneo per ogni tavolo: tavoloId -> (prodottoId -> qty)
-    private final Map<Integer, Map<Long, Integer>> ordineTempMap = new HashMap<>();
+    // TavoloId -> (ProdottoId -> Quantità)
+    private final Map<Integer, Map<Long, Integer>> ordineTemp = new ConcurrentHashMap<>();
 
-    public synchronized Map<Long, Integer> getOrdineTemp(Integer tavoloId) {
-        return ordineTempMap.getOrDefault(tavoloId, new HashMap<>());
+    public void addItem(Integer tavoloId, Long prodottoId, int quantita) {
+        ordineTemp.computeIfAbsent(tavoloId, k -> new ConcurrentHashMap<>())
+                  .merge(prodottoId, quantita, Integer::sum);
     }
 
-    public synchronized void addItem(Integer tavoloId, Long prodottoId, int qty) {
-        Map<Long, Integer> ordine = ordineTempMap.computeIfAbsent(tavoloId, k -> new HashMap<>());
-        ordine.merge(prodottoId, qty, Integer::sum);
+    public void removeItem(Integer tavoloId, Long prodottoId, int quantita) {
+        Map<Long, Integer> tavoloOrdine = ordineTemp.get(tavoloId);
+        if (tavoloOrdine != null) {
+            tavoloOrdine.merge(prodottoId, -quantita, Integer::sum);
+            tavoloOrdine.entrySet().removeIf(e -> e.getValue() <= 0);
+        }
     }
 
-    public synchronized void removeItem(Integer tavoloId, Long prodottoId, int qty) {
-        Map<Long, Integer> ordine = ordineTempMap.computeIfAbsent(tavoloId, k -> new HashMap<>());
-        ordine.compute(prodottoId, (k, v) -> Math.max((v == null ? 0 : v) - qty, 0));
+    public Map<Long, Integer> getOrdineTemp(Integer tavoloId) {
+        return ordineTemp.getOrDefault(tavoloId, Map.of());
     }
 
-    public synchronized void clearOrdine(Integer tavoloId) {
-        ordineTempMap.remove(tavoloId);
+    public void clearOrdine(Integer tavoloId) {
+        ordineTemp.remove(tavoloId);
+    }
+
+    public int getTotalePortate(Integer tavoloId) {
+        return ordineTemp.getOrDefault(tavoloId, Map.of())
+                         .values()
+                         .stream()
+                         .mapToInt(Integer::intValue)
+                         .sum();
     }
 }

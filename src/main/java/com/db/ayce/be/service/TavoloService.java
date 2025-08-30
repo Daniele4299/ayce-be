@@ -2,6 +2,7 @@ package com.db.ayce.be.service;
 
 import java.util.List;
 
+import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Tavolo;
 
 public interface TavoloService {
@@ -11,4 +12,5 @@ public interface TavoloService {
     Tavolo update(Integer id, Tavolo tavolo);
     void delete(Integer id);
     Tavolo findByNumero(Integer numero);
+    List<Ordine> findBySessione(Long sessioneId);
 }

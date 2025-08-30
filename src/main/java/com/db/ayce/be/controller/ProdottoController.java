@@ -50,6 +50,7 @@ public class ProdottoController {
             @RequestParam(value = "isCena", defaultValue = "true") Boolean isCena,
             @RequestParam(value = "isAyce", defaultValue = "true") Boolean isAyce,
             @RequestParam(value = "isCarta", defaultValue = "true") Boolean isCarta,
+            @RequestParam(value = "isLimitedPartecipanti", defaultValue = "false") Boolean isLimitedPartecipanti,
             @RequestParam(value = "immagine", required = false) MultipartFile immagineFile
     ) throws IOException {
         Prodotto p = new Prodotto();
@@ -66,6 +67,7 @@ public class ProdottoController {
         p.setIsCena(isCena);
         p.setIsAyce(isAyce);
         p.setIsCarta(isCarta);
+        p.setIsLimitedPartecipanti(isLimitedPartecipanti);
 
         if (immagineFile != null && !immagineFile.isEmpty()) {
             p.setImmagine(immagineFile.getBytes());
@@ -85,6 +87,7 @@ public class ProdottoController {
             @RequestParam(value = "isCena", defaultValue = "true") Boolean isCena,
             @RequestParam(value = "isAyce", defaultValue = "true") Boolean isAyce,
             @RequestParam(value = "isCarta", defaultValue = "true") Boolean isCarta,
+            @RequestParam(value = "isLimitedPartecipanti", defaultValue = "false") Boolean isLimitedPartecipanti,
             @RequestParam(value = "immagine", required = false) MultipartFile immagineFile
     ) throws IOException {
         Prodotto p = prodottoService.findById(id);
@@ -103,6 +106,7 @@ public class ProdottoController {
         p.setIsCena(isCena);
         p.setIsAyce(isAyce);
         p.setIsCarta(isCarta);
+        p.setIsLimitedPartecipanti(isLimitedPartecipanti);
 
         if (immagineFile != null && !immagineFile.isEmpty()) {
             p.setImmagine(immagineFile.getBytes());

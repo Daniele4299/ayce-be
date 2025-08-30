@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.db.ayce.be.entity.Ordine;
+import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.repository.OrdineRepository;
 import com.db.ayce.be.service.OrdineService;
 
@@ -41,4 +42,9 @@ public class OrdineServiceImpl implements OrdineService {
     public void delete(Long id) {
         ordineRepository.deleteById(id);
     }
+
+	@Override
+	public List<Ordine> findBySessione(Sessione sessione) {
+		return ordineRepository.findBySessione(sessione);
+	}
 }

@@ -11,4 +11,8 @@ public interface OrdineRepository extends JpaRepository<Ordine, Long> {
 	List<Ordine> findByFlagConsegnatoFalse();
 
     List<Ordine> findBySessioneIn(List<Sessione> sessioni);
+    
+    List<Ordine> findBySessioneId(Long sessioneId);
+
+	List<Ordine> findBySessione(Sessione sessione);
 }

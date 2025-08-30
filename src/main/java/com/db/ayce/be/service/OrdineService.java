@@ -3,6 +3,7 @@ package com.db.ayce.be.service;
 import java.util.List;
 
 import com.db.ayce.be.entity.Ordine;
+import com.db.ayce.be.entity.Sessione;
 
 public interface OrdineService {
     List<Ordine> findAll();
@@ -10,4 +11,5 @@ public interface OrdineService {
     Ordine save(Ordine ordine);
     Ordine update(Long id, Ordine ordine);
     void delete(Long id);
+	List<Ordine> findBySessione(Sessione sessione);
 }
