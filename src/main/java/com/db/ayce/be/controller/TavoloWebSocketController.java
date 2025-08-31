@@ -1,9 +1,7 @@
-// File: com/db/ayce/be/controller/TavoloWebSocketController.java
 package com.db.ayce.be.controller;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -39,201 +37,151 @@ public class TavoloWebSocketController {
 
     @MessageMapping("/tavolo")
     public void handleTavoloMessage(TavoloMessage msg, Principal principal) throws Exception {
+        Claims claims = extractClaims(principal);
+        Sessione sessione = getSessioneAttiva(claims);
+        Integer tavoloId = sessione.getTavolo().getId();
+
+        switch (msg.getTipoEvento()) {
+            case Constants.MSG_ADD_ITEM_TEMP, Constants.MSG_REMOVE_ITEM_TEMP -> handleTempItem(msg, sessione, tavoloId);
+            case Constants.MSG_ORDER_SENT -> handleOrderSent(sessione, tavoloId);
+            case "GET_STATUS" -> sendStatus(sessione, tavoloId);
+            default -> throw new IllegalArgumentException("Tipo messaggio non gestito: " + msg.getTipoEvento());
+        }
+    }
+
+    private Claims extractClaims(Principal principal) throws IllegalAccessException {
         if (!(principal instanceof UsernamePasswordAuthenticationToken auth)
                 || !(auth.getPrincipal() instanceof Claims claims)
                 || !Constants.ROLE_CLIENT.equals(claims.get("role", String.class))) {
             throw new IllegalAccessException("Utente non autorizzato");
         }
+        return (Claims) auth.getPrincipal();
+    }
 
-        // Recupero sessione e tavolo
-        final Long sessioneId = claims.get("sessioneId", Long.class);
-        final Sessione sessione = sessioneService.findById(sessioneId);
-        if (sessione == null || !"ATTIVA".equals(sessione.getStato())) {
+    private Sessione getSessioneAttiva(Claims claims) {
+        Long sessioneId = claims.get("sessioneId", Long.class);
+        Sessione sessione = sessioneService.findById(sessioneId);
+        if (sessione == null || !"ATTIVA".equals(sessione.getStato()))
             throw new IllegalStateException("Sessione non attiva");
+        return sessione;
+    }
+
+    private void handleTempItem(TavoloMessage msg, Sessione sessione, Integer tavoloId) throws Exception {
+        TavoloMessagePayload payload = objectMapper.readValue(msg.getPayload(), TavoloMessagePayload.class);
+        Long prodottoId = payload.getProdottoId();
+        int delta = msg.getTipoEvento().equals(Constants.MSG_REMOVE_ITEM_TEMP) ? -payload.getQuantita() : payload.getQuantita();
+        Prodotto prodotto = prodottoService.findById(prodottoId);
+
+        // Controllo massimo portate solo per prodotti normali
+        if (Boolean.TRUE.equals(sessione.getIsAyce()) && isProdottoNormale(prodotto)) {
+            int totalePortate = tavoloTempService.getOrdineTemp(tavoloId).entrySet().stream()
+                    .mapToInt(e -> isProdottoNormale(prodottoService.findById(e.getKey())) ? e.getValue() : 0).sum();
+            int maxPortate = sessione.getNumeroPartecipanti() * Constants.MAX_PORTATE_PER_PERSONA;
+            if (totalePortate + delta > maxPortate) {
+                sendError(tavoloId, "Limite portate raggiunto");
+                return;
+            }
         }
-        final Integer tavoloId = sessione.getTavolo().getId();
 
-        // Totale portate già presenti (temporaneo)
-        int totalePortate = tavoloTempService.getTotalePortate(tavoloId);
+        // Controllo prodotti limitati
+        if (Boolean.TRUE.equals(sessione.getIsAyce()) && prodotto != null
+                && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti()) && delta > 0) {
 
-        switch (msg.getTipoEvento()) {
-            case Constants.MSG_ADD_ITEM_TEMP, Constants.MSG_REMOVE_ITEM_TEMP -> {
-                TavoloMessagePayload payload = objectMapper.readValue(msg.getPayload(), TavoloMessagePayload.class);
-                Long prodottoId = payload.getProdottoId();
-                int delta = payload.getQuantita();
-                if (msg.getTipoEvento().equals(Constants.MSG_REMOVE_ITEM_TEMP)) delta = -delta;
+            int restante = sessione.getNumeroPartecipanti() - ordineService.findBySessione(sessione).stream()
+                    .filter(o -> prodottoId.equals(o.getProdotto().getId()))
+                    .mapToInt(Ordine::getQuantita).sum()
+                    - tavoloTempService.getOrdineTemp(tavoloId).getOrDefault(prodottoId, 0);
 
-                // Controllo massimo portate (vale solo per sessioni AYCE)
-                if (Boolean.TRUE.equals(sessione.getIsAyce())) {
-                    int nuovoTotale = totalePortate + delta;
-                    int maxPortate = sessione.getNumeroPartecipanti() * Constants.MAX_PORTATE_PER_PERSONA;
-                    if (nuovoTotale > maxPortate) {
-                        messagingTemplate.convertAndSend(
-                            "/topic/tavolo/" + tavoloId,
-                            new TavoloMessage(Constants.MSG_ERROR, "Limite portate raggiunto")
-                        );
-                        return;
-                    }
-                }
-
-                // Controllo isLimitedPartecipanti: se prodotto limitato e sessione AYCE, verifico quanto è già stato ordinato (DB + ordine temporaneo)
-                Prodotto prodotto = prodottoService.findById(prodottoId);
-                if (Boolean.TRUE.equals(sessione.getIsAyce())
-                        && prodotto != null
-                        && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti())
-                        && delta > 0) {
-
-                    // ordini già confermati per questa sessione dal DB
-                    List<Ordine> ordiniConfermati = ordineService.findBySessione(sessione);
-                    int confermatiPerProdotto = ordiniConfermati.stream()
-                            .filter(o -> o.getProdotto() != null && prodottoId.equals(o.getProdotto().getId()))
-                            .mapToInt(Ordine::getQuantita)
-                            .sum();
-
-                    // quantità già presente nell'ordine temporaneo (attuale)
-                    Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
-                    int tempPerProdotto = ordineTemp.getOrDefault(prodottoId, 0);
-
-                    int maxPerSessione = sessione.getNumeroPartecipanti(); // uno a persona per tutta la sessione
-                    int restante = maxPerSessione - confermatiPerProdotto - tempPerProdotto;
-
-                    if (restante <= 0) {
-                        messagingTemplate.convertAndSend(
-                            "/topic/tavolo/" + tavoloId,
-                            new TavoloMessage(Constants.MSG_ERROR, "Limite per questo prodotto raggiunto (max " + maxPerSessione + " - 1 a persona per sessione)")
-                        );
-                        return;
-                    }
-
-                    if (delta > restante) {
-                        messagingTemplate.convertAndSend(
-                            "/topic/tavolo/" + tavoloId,
-                            new TavoloMessage(Constants.MSG_ERROR, "Puoi aggiungere al massimo " + restante + " di questo prodotto per la sessione")
-                        );
-                        return;
-                    }
-                }
-
-                // se tutti i controlli passano, aggiorno temporaneo
-                if (delta > 0) tavoloTempService.addItem(tavoloId, prodottoId, delta);
-                else tavoloTempService.removeItem(tavoloId, prodottoId, -delta);
-
-                Map<Long, Integer> ordineAggiornato = tavoloTempService.getOrdineTemp(tavoloId);
-                messagingTemplate.convertAndSend(
-                    "/topic/tavolo/" + tavoloId,
-                    new TavoloMessage(Constants.MSG_UPDATE_TEMP, objectMapper.writeValueAsString(ordineAggiornato))
-                );
+            if (restante <= 0) {
+                sendError(tavoloId, "Limite per questo prodotto raggiunto (max " + sessione.getNumeroPartecipanti() + " - 1 a persona per sessione)");
+                return;
             }
-            case Constants.MSG_ORDER_SENT -> {
-                final Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
+            if (delta > restante) {
+                sendError(tavoloId, "Puoi aggiungere al massimo " + restante + " di questo prodotto per la sessione");
+                return;
+            }
+        }
 
-                // controlli e salvataggio: per prodotti limited check again (solo per AYCE) e salva solo quantità consentita
-                StringBuilder warning = new StringBuilder();
-                boolean savedAnyNormalProduct = false;
-                boolean savedAny = false;
+        // Aggiorno ordine temporaneo
+        if (delta > 0) tavoloTempService.addItem(tavoloId, prodottoId, delta);
+        else tavoloTempService.removeItem(tavoloId, prodottoId, -delta);
+        sendUpdateTemp(tavoloId);
+    }
 
-                for (Map.Entry<Long, Integer> e : ordineTemp.entrySet()) {
-                    Long prodottoId = e.getKey();
-                    Integer quantita = e.getValue();
-                    if (quantita == null || quantita <= 0) continue;
+    private void handleOrderSent(Sessione sessione, Integer tavoloId) throws Exception {
+        Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
+        StringBuilder warning = new StringBuilder();
+        boolean savedAnyNormalProduct = false;
 
-                    Prodotto prodotto = prodottoService.findById(prodottoId);
-                    if (prodotto == null) continue;
+        for (Map.Entry<Long, Integer> e : ordineTemp.entrySet()) {
+            Long prodottoId = e.getKey();
+            Integer quantita = e.getValue();
+            if (quantita == null || quantita <= 0) continue;
 
-                    if (Boolean.TRUE.equals(sessione.getIsAyce())
-                            && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti())) {
-                        // quantità già confermata nel DB per questa sessione
-                        List<Ordine> ordiniConfermati = ordineService.findBySessione(sessione);
-                        int confermatiPerProdotto = ordiniConfermati.stream()
-                                .filter(o -> o.getProdotto() != null && prodottoId.equals(o.getProdotto().getId()))
-                                .mapToInt(Ordine::getQuantita)
-                                .sum();
+            Prodotto prodotto = prodottoService.findById(prodottoId);
+            if (prodotto == null) continue;
 
-                        int maxPerSessione = sessione.getNumeroPartecipanti();
-                        int restante = maxPerSessione - confermatiPerProdotto;
+            if (Boolean.TRUE.equals(sessione.getIsAyce()) && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti()) && isProdottoNormale(prodotto)) {
+                int confermati = ordineService.findBySessione(sessione).stream()
+                        .filter(o -> prodottoId.equals(o.getProdotto().getId()))
+                        .mapToInt(Ordine::getQuantita).sum();
 
-                        if (restante <= 0) {
-                            // niente da salvare per questo prodotto
-                            warning.append("Nessuna quantità disponibile per ").append(prodotto.getNome()).append(". ");
-                            continue;
-                        }
-
-                        if (quantita > restante) {
-                            // salva solo la parte consentita e avvisa
-                            warning.append("Quantità per ").append(prodotto.getNome()).append(" ridotta a ").append(restante).append(". ");
-                            quantita = restante;
-                        }
-                    }
-
-                    // salva l'ordine (quantita già eventualmente ridotta)
-                    if (quantita != null && quantita > 0) {
-                        Ordine ordine = new Ordine();
-                        ordine.setFlagConsegnato(false);
-                        ordine.setOrario(LocalDateTime.now());
-                        ordine.setPrezzoUnitario(Boolean.TRUE.equals(sessione.getIsAyce()) ? 0 : prodotto.getPrezzo());
-                        ordine.setProdotto(prodotto);
-                        ordine.setQuantita(quantita);
-                        ordine.setSessione(sessione);
-                        ordine.setStato("INVIATO");
-                        ordine.setTavolo(sessione.getTavolo());
-
-                        ordineService.save(ordine);
-                        savedAny = true;
-
-                        // se il prodotto è "normale" (<100) segnalo che dobbiamo aggiornare il lastOrder (AYCE only)
-                        if (prodotto.getCategoria() != null && prodotto.getCategoria().getId() < 100) {
-                            savedAnyNormalProduct = true;
-                        }
-                    }
+                int restante = sessione.getNumeroPartecipanti() - confermati;
+                if (restante <= 0) {
+                    warning.append("Nessuna quantità disponibile per ").append(prodotto.getNome()).append(". ");
+                    continue;
                 }
-
-                // pulisco ordine temporaneo
-                tavoloTempService.clearOrdine(tavoloId);
-
-                // Aggiorno timestamp ultimo ordine SOLO SE:
-                // - sessione è AYCE
-                // - e sono stati salvati prodotti "normali" (categoria < 100)
-                if (Boolean.TRUE.equals(sessione.getIsAyce()) && savedAnyNormalProduct) {
-                    sessione.setUltimoOrdineInviato(LocalDateTime.now());
-                    sessioneService.save(sessione);
-
-                    // notifico il tavolo: ORDER_SENT (per attivare cooldown)
-                    messagingTemplate.convertAndSend(
-                        "/topic/tavolo/" + tavoloId,
-                        new TavoloMessage(Constants.MSG_ORDER_SENT, "")
-                    );
-                } else {
-                    // non aggiorno ultimoOrdine (es. solo bevande) -> non mando ORDER_SENT -> no cooldown
-                }
-
-                // sempre notifico UPDATE_TEMP (ordine vuoto)
-                Map<Long, Integer> ordineAggiornato = tavoloTempService.getOrdineTemp(tavoloId);
-                messagingTemplate.convertAndSend(
-                    "/topic/tavolo/" + tavoloId,
-                    new TavoloMessage(Constants.MSG_UPDATE_TEMP, objectMapper.writeValueAsString(ordineAggiornato))
-                );
-
-                if (warning.length() > 0) {
-                    messagingTemplate.convertAndSend(
-                        "/topic/tavolo/" + tavoloId,
-                        new TavoloMessage(Constants.MSG_ERROR, warning.toString())
-                    );
+                if (quantita > restante) {
+                    warning.append("Quantità per ").append(prodotto.getNome()).append(" ridotta a ").append(restante).append(". ");
+                    quantita = restante;
                 }
             }
-            case "GET_STATUS" -> {
-                Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
-                messagingTemplate.convertAndSend(
-                    "/topic/tavolo/" + tavoloId,
-                    new TavoloMessage(Constants.MSG_UPDATE_TEMP,
+
+            Ordine ordine = new Ordine();
+            ordine.setFlagConsegnato(false);
+            ordine.setOrario(LocalDateTime.now());
+            ordine.setPrezzoUnitario(Boolean.TRUE.equals(sessione.getIsAyce()) ? 0 : prodotto.getPrezzo());
+            ordine.setProdotto(prodotto);
+            ordine.setQuantita(quantita);
+            ordine.setSessione(sessione);
+            ordine.setStato("INVIATO");
+            ordine.setTavolo(sessione.getTavolo());
+            ordineService.save(ordine);
+
+            if (isProdottoNormale(prodotto)) savedAnyNormalProduct = true;
+        }
+
+        tavoloTempService.clearOrdine(tavoloId);
+        if (Boolean.TRUE.equals(sessione.getIsAyce()) && savedAnyNormalProduct) {
+            sessione.setUltimoOrdineInviato(LocalDateTime.now());
+            sessioneService.save(sessione);
+            messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId, new TavoloMessage(Constants.MSG_ORDER_SENT, ""));
+        }
+        sendUpdateTemp(tavoloId);
+        if (warning.length() > 0) sendError(tavoloId, warning.toString());
+    }
+
+    private void sendStatus(Sessione sessione, Integer tavoloId) throws Exception {
+        Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
+        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId,
+                new TavoloMessage(Constants.MSG_UPDATE_TEMP,
                         objectMapper.writeValueAsString(Map.of(
-                            "ordine", ordineTemp,
-                            "lastOrder", sessione.getUltimoOrdineInviato()
-                        ))
-                    )
-                );
-                break;
-            }
-            default -> throw new IllegalArgumentException("Tipo messaggio non gestito: " + msg.getTipoEvento());
-        }
+                                "ordine", ordineTemp,
+                                "lastOrder", sessione.getUltimoOrdineInviato()
+                        ))));
+    }
+
+    private void sendUpdateTemp(Integer tavoloId) throws Exception {
+        Map<Long, Integer> ordineAggiornato = tavoloTempService.getOrdineTemp(tavoloId);
+        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId,
+                new TavoloMessage(Constants.MSG_UPDATE_TEMP, objectMapper.writeValueAsString(ordineAggiornato)));
+    }
+
+    private void sendError(Integer tavoloId, String msg) {
+        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId, new TavoloMessage(Constants.MSG_ERROR, msg));
+    }
+
+    private boolean isProdottoNormale(Prodotto p) {
+        return p != null && p.getCategoria() != null && p.getCategoria().getId() < 100;
     }
 }
