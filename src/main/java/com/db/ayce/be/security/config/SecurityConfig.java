@@ -40,7 +40,7 @@ public class SecurityConfig {
                     "/webjars/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .anyRequest().hasAnyRole("ADMIN", "USER", "CLIENT")
+                .anyRequest().hasAnyRole("ADMIN", "DIPEN", "CLIENT")
             )
             .userDetailsService(userDetailsService)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
