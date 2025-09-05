@@ -1,6 +1,5 @@
 package com.db.ayce.be.config;
 
-import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,34 +10,24 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.security.SecurityScheme.In;
 import io.swagger.v3.oas.models.security.SecurityScheme.Type;
 
+import com.db.ayce.be.utils.Constants;
+
 @Configuration
 public class OpenAPIConfig {
-
-    private static final String SECURITY_SCHEME_NAME = "bearerAuth";
-
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
             .info(new Info()
-                .title("AYCE Blackout API")
-                .version("1.0")
-                .description("Documentazione delle API del sistema Blackout"))
-            .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
+                .title(Constants.OPENAPI_TITLE)
+                .version(Constants.OPENAPI_VERSION)
+                .description(Constants.OPENAPI_DESCRIPTION))
+            .addSecurityItem(new SecurityRequirement().addList(Constants.OPENAPI_SECURITY_SCHEME))
             .components(new io.swagger.v3.oas.models.Components()
-                .addSecuritySchemes(SECURITY_SCHEME_NAME, new SecurityScheme()
-                    .name(SECURITY_SCHEME_NAME)
+                .addSecuritySchemes(Constants.OPENAPI_SECURITY_SCHEME, new SecurityScheme()
+                    .name(Constants.OPENAPI_SECURITY_SCHEME)
                     .type(Type.HTTP)
                     .scheme("bearer")
                     .bearerFormat("JWT")
                     .in(In.HEADER)));
-    }
-
-    // (Opzionale) Per dividere le API in gruppi
-    @Bean
-    public GroupedOpenApi publicApi() {
-        return GroupedOpenApi.builder()
-            .group("public")
-            .pathsToMatch("/api/**", "/auth/**")
-            .build();
     }
 }

@@ -27,8 +27,7 @@ public class Prodotto {
     @Column(columnDefinition = "TEXT")
     private String descrizione;
 
-    @Column(name = "immagine")
-    private byte[] immagine;
+    private String immagine;
 
     private Double prezzo;
 
@@ -47,7 +46,7 @@ public class Prodotto {
 
     @Column(name = "is_carta", nullable = false)
     private Boolean isCarta = true;
-    
+
     @Column(name = "islimitedpartecipanti", nullable = false)
     private Boolean isLimitedPartecipanti = false;
 }

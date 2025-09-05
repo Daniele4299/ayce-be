@@ -25,8 +25,7 @@ public class CategoriaServiceImpl implements CategoriaService {
 
     @Override
     public Categoria findById(Long id) {
-        return categoriaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoria non trovata con id: " + id));
+        return categoriaRepository.findById(id).orElseThrow(() -> new RuntimeException("Categoria non trovata con id: " + id));
     }
 
     @Override
@@ -36,7 +35,7 @@ public class CategoriaServiceImpl implements CategoriaService {
 
     @Override
     public void delete(Long id) {
-        Categoria c = findById(id); // lancio eccezione se non esiste
+        Categoria c = findById(id);
         categoriaRepository.delete(c);
     }
 }

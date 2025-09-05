@@ -2,6 +2,7 @@ package com.db.ayce.be.controller;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +18,8 @@ import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.service.OrdineService;
 import com.db.ayce.be.service.SessioneService;
+import com.db.ayce.be.utils.AuthUtils;
+import com.db.ayce.be.utils.Constants;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,35 +28,46 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OrdineController {
 
-    private final OrdineService ordineService;
-    private final SessioneService sessioneService;
+	@Autowired
+	OrdineService ordineService;
+	
+	@Autowired
+	SessioneService sessioneService;
+	
+	@Autowired
+	AuthUtils authUtils;
 
-    @GetMapping
-    public List<Ordine> getAllOrdini() {
-        return ordineService.findAll();
-    }
+	@GetMapping
+	public List<Ordine> getAllOrdini() {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		return ordineService.findAll();
+	}
 
-    @GetMapping("/{id}")
-    public Ordine getOrdineById(@PathVariable Long id) {
-        return ordineService.findById(id);
-    }
+	@GetMapping("/{id}")
+	public Ordine getOrdineById(@PathVariable Long id) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_CLIENT, Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		return ordineService.findById(id);
+	}
 
-    @PostMapping
-    public Ordine createOrdine(@RequestBody Ordine ordine) {
-        return ordineService.save(ordine);
-    }
+	@PostMapping
+	public Ordine createOrdine(@RequestBody Ordine ordine) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		return ordineService.save(ordine);
+	}
 
-    @PutMapping("/{id}")
-    public Ordine updateOrdine(@PathVariable Long id, @RequestBody Ordine ordine) {
-        return ordineService.update(id, ordine);
-    }
+	@PutMapping("/{id}")
+	public Ordine updateOrdine(@PathVariable Long id, @RequestBody Ordine ordine) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		return ordineService.update(id, ordine);
+	}
 
-    @DeleteMapping("/{id}")
-    public void deleteOrdine(@PathVariable Long id) {
-        ordineService.delete(id);
-    }
-    
-    @GetMapping("/sessione/{sessioneId}")
+	@DeleteMapping("/{id}")
+	public void deleteOrdine(@PathVariable Long id) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		ordineService.delete(id);
+	}
+	
+    @GetMapping("/storico/{sessioneId}")
     public List<Ordine> getOrdiniBySessione(@PathVariable Long sessioneId) {
         Sessione sessione = sessioneService.findById(sessioneId);
         if (sessione == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessione non trovata");

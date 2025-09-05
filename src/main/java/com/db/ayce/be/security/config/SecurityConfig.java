@@ -14,6 +14,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import com.db.ayce.be.security.jwt.JwtAuthenticationFilter;
 import com.db.ayce.be.service.CustomUserDetailsService;
+import com.db.ayce.be.utils.Constants;
 
 @Configuration
 @EnableWebSecurity
@@ -32,15 +33,9 @@ public class SecurityConfig {
         return http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/auth/**",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/webjars/**"
-                ).permitAll()
+                .requestMatchers(Constants.SWAGGER_WHITELIST).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .anyRequest().hasAnyRole("ADMIN", "DIPEN", "CLIENT")
+                .anyRequest().hasAnyRole(Constants.ROLE_ADMIN, Constants.ROLE_DIPEN, Constants.ROLE_CLIENT)
             )
             .userDetailsService(userDetailsService)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

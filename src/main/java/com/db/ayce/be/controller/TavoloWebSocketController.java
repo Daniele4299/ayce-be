@@ -14,6 +14,7 @@ import com.db.ayce.be.dto.TavoloMessagePayload;
 import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Prodotto;
 import com.db.ayce.be.entity.Sessione;
+import com.db.ayce.be.service.CucinaWebSocketService;
 import com.db.ayce.be.service.OrdineService;
 import com.db.ayce.be.service.ProdottoService;
 import com.db.ayce.be.service.SessioneService;
@@ -34,6 +35,7 @@ public class TavoloWebSocketController {
     private final OrdineService ordineService;
     private final SessioneService sessioneService;
     private final ProdottoService prodottoService;
+    private final CucinaWebSocketService cucinaWebSocketService;
 
     @MessageMapping("/tavolo")
     public void handleTavoloMessage(TavoloMessage msg, Principal principal) throws Exception {
@@ -44,24 +46,24 @@ public class TavoloWebSocketController {
         switch (msg.getTipoEvento()) {
             case Constants.MSG_ADD_ITEM_TEMP, Constants.MSG_REMOVE_ITEM_TEMP -> handleTempItem(msg, sessione, tavoloId);
             case Constants.MSG_ORDER_SENT -> handleOrderSent(sessione, tavoloId);
-            case "GET_STATUS" -> sendStatus(sessione, tavoloId);
-            default -> throw new IllegalArgumentException("Tipo messaggio non gestito: " + msg.getTipoEvento());
+            case Constants.MSG_GET_STATUS -> sendStatus(sessione, tavoloId);
+            default -> sendError(tavoloId, "Tipo messaggio non gestito: " + msg.getTipoEvento());
         }
     }
 
     private Claims extractClaims(Principal principal) throws IllegalAccessException {
         if (!(principal instanceof UsernamePasswordAuthenticationToken auth)
                 || !(auth.getPrincipal() instanceof Claims claims)
-                || !Constants.ROLE_CLIENT.equals(claims.get("role", String.class))) {
+                || !Constants.ROLE_CLIENT.equals(claims.get(Constants.CLAIM_ROLE))) {
             throw new IllegalAccessException("Utente non autorizzato");
         }
-        return (Claims) auth.getPrincipal();
+        return (Claims) ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
     }
 
     private Sessione getSessioneAttiva(Claims claims) {
-        Long sessioneId = claims.get("sessioneId", Long.class);
+        Long sessioneId = claims.get(Constants.CLAIM_SESSIONE_ID, Long.class);
         Sessione sessione = sessioneService.findById(sessioneId);
-        if (sessione == null || !"ATTIVA".equals(sessione.getStato()))
+        if (sessione == null || !Constants.SESSION_STATE_ACTIVE.equals(sessione.getStato()))
             throw new IllegalStateException("Sessione non attiva");
         return sessione;
     }
@@ -78,7 +80,7 @@ public class TavoloWebSocketController {
                     .mapToInt(e -> isProdottoNormale(prodottoService.findById(e.getKey())) ? e.getValue() : 0).sum();
             int maxPortate = sessione.getNumeroPartecipanti() * Constants.MAX_PORTATE_PER_PERSONA;
             if (totalePortate + delta > maxPortate) {
-                sendError(tavoloId, "Limite portate raggiunto");
+                sendError(tavoloId, Constants.ERR_LIMIT_PORTATE);
                 return;
             }
         }
@@ -93,11 +95,11 @@ public class TavoloWebSocketController {
                     - tavoloTempService.getOrdineTemp(tavoloId).getOrDefault(prodottoId, 0);
 
             if (restante <= 0) {
-                sendError(tavoloId, "Limite per questo prodotto raggiunto (max " + sessione.getNumeroPartecipanti() + " - 1 a persona per sessione)");
+                sendError(tavoloId, String.format(Constants.ERR_LIMIT_PRODOTTO, sessione.getNumeroPartecipanti()));
                 return;
             }
             if (delta > restante) {
-                sendError(tavoloId, "Puoi aggiungere al massimo " + restante + " di questo prodotto per la sessione");
+                sendError(tavoloId, String.format(Constants.ERR_MAX_PRODOTTO_SESSIONE, restante));
                 return;
             }
         }
@@ -109,9 +111,22 @@ public class TavoloWebSocketController {
     }
 
     private void handleOrderSent(Sessione sessione, Integer tavoloId) throws Exception {
-        Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
+        boolean isCooldownActive = false;
+        long minutiPassati = 0L;
+    	if (Boolean.TRUE.equals(sessione.getIsAyce()) && sessione.getUltimoOrdineInviato() != null) {
+            LocalDateTime ora = LocalDateTime.now();
+            LocalDateTime ultimoOrdine = sessione.getUltimoOrdineInviato();
+            minutiPassati = java.time.Duration.between(ultimoOrdine, ora).toMinutes();
+            if (minutiPassati < Constants.COOLDOWN_MINUTI_ORDINE) {
+            	isCooldownActive = true;
+            }
+        }
+    	
+    	Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
         StringBuilder warning = new StringBuilder();
         boolean savedAnyNormalProduct = false;
+        
+        
 
         for (Map.Entry<Long, Integer> e : ordineTemp.entrySet()) {
             Long prodottoId = e.getKey();
@@ -120,6 +135,11 @@ public class TavoloWebSocketController {
 
             Prodotto prodotto = prodottoService.findById(prodottoId);
             if (prodotto == null) continue;
+            if (prodotto.getCategoria().getId() < 100L && isCooldownActive) {
+                long minutiRimanenti = Constants.COOLDOWN_MINUTI_ORDINE - minutiPassati;
+                sendError(tavoloId, "Devi attendere ancora " + minutiRimanenti + " minuti prima di inviare un nuovo ordine normale.");
+                return;
+            }
 
             if (Boolean.TRUE.equals(sessione.getIsAyce()) && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti()) && isProdottoNormale(prodotto)) {
                 int confermati = ordineService.findBySessione(sessione).stream()
@@ -128,11 +148,11 @@ public class TavoloWebSocketController {
 
                 int restante = sessione.getNumeroPartecipanti() - confermati;
                 if (restante <= 0) {
-                    warning.append("Nessuna quantità disponibile per ").append(prodotto.getNome()).append(". ");
+                    warning.append(Constants.ERR_NESSUNA_QUANTITA).append(prodotto.getNome()).append(". ");
                     continue;
                 }
                 if (quantita > restante) {
-                    warning.append("Quantità per ").append(prodotto.getNome()).append(" ridotta a ").append(restante).append(". ");
+                    warning.append(Constants.ERR_QUANTITA_RIDOTTA).append(prodotto.getNome()).append(" a ").append(restante).append(". ");
                     quantita = restante;
                 }
             }
@@ -140,13 +160,15 @@ public class TavoloWebSocketController {
             Ordine ordine = new Ordine();
             ordine.setFlagConsegnato(false);
             ordine.setOrario(LocalDateTime.now());
-            ordine.setPrezzoUnitario(Boolean.TRUE.equals(sessione.getIsAyce()) ? 0 : prodotto.getPrezzo());
+            ordine.setPrezzoUnitario(Boolean.TRUE.equals(sessione.getIsAyce()) && prodotto.getCategoria().getId() < 100L ? 0 : prodotto.getPrezzo());
             ordine.setProdotto(prodotto);
             ordine.setQuantita(quantita);
             ordine.setSessione(sessione);
-            ordine.setStato("INVIATO");
+            ordine.setStato(Constants.ORDINE_STATO_INVIATO);
             ordine.setTavolo(sessione.getTavolo());
             ordineService.save(ordine);
+            
+            cucinaWebSocketService.notifyNewOrder(ordine.getId());
 
             if (isProdottoNormale(prodotto)) savedAnyNormalProduct = true;
         }

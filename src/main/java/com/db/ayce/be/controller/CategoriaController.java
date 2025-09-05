@@ -2,65 +2,76 @@ package com.db.ayce.be.controller;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.db.ayce.be.entity.Categoria;
 import com.db.ayce.be.service.CategoriaService;
-
-import lombok.RequiredArgsConstructor;
+import com.db.ayce.be.utils.AuthUtils;
+import com.db.ayce.be.utils.Constants;
 
 @RestController
 @RequestMapping("/api/categorie")
-@RequiredArgsConstructor
 public class CategoriaController {
 
-    private final CategoriaService categoriaService;
+	@Autowired
+	CategoriaService categoriaService;
 
-    // GET: tutte le categorie
-    @GetMapping
-    public List<Categoria> getAllCategorie() {
-        return categoriaService.findAll();
-    }
+	@Autowired
+	AuthUtils authUtils;
 
-    // GET: categoria per id
-    @GetMapping("/{id}")
-    public ResponseEntity<Categoria> getCategoriaById(@PathVariable Long id) {
-        Categoria categoria = categoriaService.findById(id);
-        if (categoria != null) {
-            return ResponseEntity.ok(categoria);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
+	@GetMapping
+	public List<Categoria> getAllCategorie() {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_CLIENT, Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		return categoriaService.findAll();
+	}
 
-    // POST: crea nuova categoria
-    @PostMapping
-    public Categoria createCategoria(@RequestBody Categoria categoria) {
-        return categoriaService.save(categoria);
-    }
+	@GetMapping("/{id}")
+	public ResponseEntity<Categoria> getCategoriaById(@PathVariable Long id) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_CLIENT, Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		Categoria categoria = categoriaService.findById(id);
+		if (categoria != null) {
+			return ResponseEntity.ok(categoria);
+		} else {
+			return ResponseEntity.notFound().build();
+		}
+	}
 
-    // PUT: aggiorna categoria esistente
-    @PutMapping("/{id}")
-    public ResponseEntity<Categoria> updateCategoria(@PathVariable Long id, @RequestBody Categoria updatedCategoria) {
-        Categoria categoria = categoriaService.findById(id);
-        if (categoria != null) {
-            categoria.setNome(updatedCategoria.getNome());
-            return ResponseEntity.ok(categoriaService.save(categoria));
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
+	@PostMapping
+	public Categoria createCategoria(@RequestBody Categoria categoria) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN);
+		return categoriaService.save(categoria);
+	}
 
-    // DELETE: elimina categoria
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCategoria(@PathVariable Long id) {
-        Categoria categoria = categoriaService.findById(id);
-        if (categoria != null) {
-            categoriaService.delete(id);
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
+	@PutMapping("/{id}")
+	public ResponseEntity<Categoria> updateCategoria(@PathVariable Long id, @RequestBody Categoria updatedCategoria) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN);
+		Categoria categoria = categoriaService.findById(id);
+		if (categoria != null) {
+			categoria.setNome(updatedCategoria.getNome());
+			return ResponseEntity.ok(categoriaService.save(categoria));
+		} else {
+			return ResponseEntity.notFound().build();
+		}
+	}
+
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> deleteCategoria(@PathVariable Long id) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN);
+		Categoria categoria = categoriaService.findById(id);
+		if (categoria != null) {
+			categoriaService.delete(id);
+			return ResponseEntity.noContent().build();
+		} else {
+			return ResponseEntity.notFound().build();
+		}
+	}
 }

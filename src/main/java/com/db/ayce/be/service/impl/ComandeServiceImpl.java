@@ -1,7 +1,7 @@
 package com.db.ayce.be.service.impl;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,11 +9,12 @@ import org.springframework.stereotype.Service;
 import com.db.ayce.be.dto.OrdineDto;
 import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Sessione;
-import com.db.ayce.be.entity.Utente;
+import com.db.ayce.be.mapper.ProdottoMapper;
 import com.db.ayce.be.repository.OrdineRepository;
 import com.db.ayce.be.repository.SessioneRepository;
 import com.db.ayce.be.repository.UtenteProdottoRepository;
 import com.db.ayce.be.service.ComandeService;
+import com.db.ayce.be.service.CucinaWebSocketService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,8 +31,10 @@ public class ComandeServiceImpl implements ComandeService {
 	@Autowired
 	OrdineRepository ordineRepository;
 	
+	@Autowired
+	CucinaWebSocketService cucinaWebSocketService;
+	
 
-	@Override
 	public List<OrdineDto> getComandeFiltrate(Long id, boolean soloAssegnati, boolean nascondiConsegnati) {
 	    List<Long> productsList = soloAssegnati
 	            ? utenteProdottoRepository.findProdottoIdsByUtenteIdAndRiceveComandaTrue(id)
@@ -43,14 +46,14 @@ public class ComandeServiceImpl implements ComandeService {
 
 	    List<Ordine> ordiniFiltrati = ordiniRaw.stream()
 	        .filter(o -> (!soloAssegnati || productsList.contains(o.getProdotto().getId())))
-	        .filter(o -> !nascondiConsegnati || !o.getFlagConsegnato()) 
+	        .filter(o -> !nascondiConsegnati || !o.getFlagConsegnato())
 	        .toList();
 
 	    return ordiniFiltrati.stream()
 	        .map(o -> new OrdineDto(
 	                o.getId(),
 	                o.getSessione().getTavolo(),
-	                o.getProdotto(),
+	                ProdottoMapper.toDto(o.getProdotto()),
 	                o.getQuantita(),
 	                o.getOrario(),
 	                o.getFlagConsegnato(),
@@ -60,34 +63,17 @@ public class ComandeServiceImpl implements ComandeService {
 	}
 
 
-
 	@Override
-	public OrdineDto updateOrdineConsegnato(Long id, OrdineDto ordineDto, Utente utente) {
-		Optional<Ordine> optionalOrdine = ordineRepository.findById(id);
+	public void toggleConsegnato(Long id, Map<String, Object> body) {
+		ordineRepository.findById(id).ifPresent(ordine -> {
+			boolean consegnato = Boolean.TRUE.equals(body.get("flagConsegnato"));
 
-	    if (optionalOrdine.isEmpty()) {
-	        throw new RuntimeException("Ordine non trovato con id " + id);
-	    }
+			cucinaWebSocketService.notifyConsegnaChanged(ordine.getId(), consegnato);
 
-	    Ordine ordine = optionalOrdine.get();
+			ordine.setFlagConsegnato(consegnato);
+			ordine.setStato(consegnato ? "CONSEGNATO" : "INVIATO");
 
-	    if (ordineDto.getFlagConsegnato() != null) {
-	        ordine.setFlagConsegnato(ordineDto.getFlagConsegnato());
-	    }
-
-	    ordine = ordineRepository.save(ordine);
-
-	    OrdineDto dto = new OrdineDto();
-	    dto.setId(ordine.getId());
-	    dto.setTavolo(ordine.getTavolo());
-	    dto.setProdotto(ordine.getProdotto());
-	    dto.setQuantita(ordine.getQuantita());
-	    dto.setOrario(ordine.getOrario());
-	    dto.setFlagConsegnato(ordine.getFlagConsegnato());
-	    dto.setNumeroPartecipanti(
-	        ordine.getSessione() != null ? ordine.getSessione().getNumeroPartecipanti() : null
-	    );
-
-	    return dto;
+			ordineRepository.save(ordine);
+		});
 	}
 }

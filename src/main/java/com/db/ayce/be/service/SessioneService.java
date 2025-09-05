@@ -10,4 +10,5 @@ public interface SessioneService {
     Sessione save(Sessione sessione);
     Sessione update(Long id, Sessione sessione);
     void delete(Long id);
+	byte[] generatePdfResoconto(Long id);
 }

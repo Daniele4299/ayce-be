@@ -2,7 +2,6 @@ package com.db.ayce.be.dto;
 
 import java.time.LocalDateTime;
 
-import com.db.ayce.be.entity.Prodotto;
 import com.db.ayce.be.entity.Tavolo;
 
 import lombok.AllArgsConstructor;
@@ -15,7 +14,7 @@ import lombok.NoArgsConstructor;
 public class OrdineDto {
     private Long id;
     private Tavolo tavolo;
-    private Prodotto prodotto;
+    private ProdottoDto prodotto;
     private Integer quantita;
     private LocalDateTime orario;
     private Boolean flagConsegnato;

@@ -2,6 +2,7 @@ package com.db.ayce.be.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,4 +48,16 @@ public class SessioneController {
     public void deleteSessione(@PathVariable Long id) {
         sessioneService.delete(id);
     }
+    
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> getSessioneResocontoById(@PathVariable Long id) {
+        byte[] pdfBytes = sessioneService.generatePdfResoconto(id);
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "inline; filename=sessione_" + id + ".pdf")
+                .body(pdfBytes);
+    }
+
+    
 }

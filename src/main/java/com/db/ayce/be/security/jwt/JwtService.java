@@ -29,25 +29,24 @@ public class JwtService {
 
     public String generateToken(Utente utente) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("sub", utente.getUsername());
-        claims.put("role", Constants.getRoleName(utente.getLivello()));
+        claims.put(Constants.CLAIM_SUB, utente.getUsername());
+        claims.put(Constants.CLAIM_ROLE, Constants.getRoleName(utente.getLivello()));
         return createToken(claims, jwtExpiration);
     }
 
     public String generateClientToken(Sessione sessione) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", Constants.ROLE_CLIENT);
-        claims.put("tavoloId", sessione.getTavolo().getId());
-        claims.put("tavoloNum", sessione.getTavolo().getNumero());
-        claims.put("sessioneId", sessione.getId());
-        claims.put("isAyce", sessione.getIsAyce());
+        claims.put(Constants.CLAIM_ROLE, Constants.ROLE_CLIENT);
+        claims.put(Constants.CLAIM_TAVOLO_ID, sessione.getTavolo().getId());
+        claims.put(Constants.CLAIM_TAVOLO_NUM, sessione.getTavolo().getNumero());
+        claims.put(Constants.CLAIM_SESSIONE_ID, sessione.getId());
+        claims.put(Constants.CLAIM_IS_AYCE, sessione.getIsAyce());
         return createToken(claims, jwtExpiration);
     }
 
     private String createToken(Map<String, Object> claims, long expirationMillis) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMillis);
-
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(now)
@@ -65,7 +64,12 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        return extractAllClaims(token).getSubject().equals(userDetails.getUsername())
-                && extractAllClaims(token).getExpiration().after(new Date());
+        Claims claims = extractAllClaims(token);
+        String subject = claims.getSubject();
+        Date expiration = claims.getExpiration();
+        return subject != null
+                && subject.equals(userDetails.getUsername())
+                && expiration != null
+                && expiration.after(new Date());
     }
 }

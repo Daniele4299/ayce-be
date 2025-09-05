@@ -3,21 +3,14 @@ package com.db.ayce.be.controller;
 import java.io.IOException;
 import java.util.List;
 
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.db.ayce.be.entity.Categoria;
 import com.db.ayce.be.entity.Prodotto;
 import com.db.ayce.be.service.CategoriaService;
+import com.db.ayce.be.service.ImageService;
 import com.db.ayce.be.service.ProdottoService;
 
 import lombok.RequiredArgsConstructor;
@@ -29,6 +22,7 @@ public class ProdottoController {
 
     private final ProdottoService prodottoService;
     private final CategoriaService categoriaService;
+    private final ImageService imageService;
 
     @GetMapping
     public List<Prodotto> getAllProdotti() {
@@ -69,11 +63,16 @@ public class ProdottoController {
         p.setIsCarta(isCarta);
         p.setIsLimitedPartecipanti(isLimitedPartecipanti);
 
+        // salvo prodotto senza immagine per ottenere ID
+        Prodotto saved = prodottoService.save(p);
+
         if (immagineFile != null && !immagineFile.isEmpty()) {
-            p.setImmagine(immagineFile.getBytes());
+            String relativePath = imageService.saveProductImage(immagineFile, saved.getId());
+            saved.setImmagine(relativePath);
+            saved = prodottoService.save(saved);
         }
 
-        return prodottoService.save(p);
+        return saved;
     }
 
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
@@ -109,25 +108,16 @@ public class ProdottoController {
         p.setIsLimitedPartecipanti(isLimitedPartecipanti);
 
         if (immagineFile != null && !immagineFile.isEmpty()) {
-            p.setImmagine(immagineFile.getBytes());
+            String relativePath = imageService.saveProductImage(immagineFile, p.getId());
+            p.setImmagine(relativePath);
         }
 
         return prodottoService.save(p);
     }
 
-    @GetMapping("/{id}/immagine")
-    public ResponseEntity<byte[]> getProdottoImage(@PathVariable Long id) {
-        Prodotto p = prodottoService.findById(id);
-        if (p.getImmagine() == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_PNG) // o JPEG a seconda del formato
-                .body(p.getImmagine());
-    }
-
     @DeleteMapping("/{id}")
-    public void deleteProdotto(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProdotto(@PathVariable Long id) {
         prodottoService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

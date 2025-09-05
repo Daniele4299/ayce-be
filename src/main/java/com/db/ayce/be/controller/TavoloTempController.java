@@ -2,11 +2,14 @@ package com.db.ayce.be.controller;
 
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.db.ayce.be.service.TavoloTempService;
+import com.db.ayce.be.utils.AuthUtils;
+import com.db.ayce.be.utils.Constants;
 
 import lombok.RequiredArgsConstructor;
 
@@ -14,10 +17,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TavoloTempController {
 
+	@Autowired
+	AuthUtils authUtils;
+	
     private final TavoloTempService tavoloTempService;
 
     @GetMapping("/api/tavoli/{tavoloId}/ordine-temporaneo")
     public Map<Long, Integer> getOrdineTemporaneo(@PathVariable Integer tavoloId) {
-        return tavoloTempService.getOrdineTemp(tavoloId);
+    	authUtils.getCurrentUserOrThrow(Constants.ROLE_CLIENT, Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+    	return tavoloTempService.getOrdineTemp(tavoloId);
     }
 }

@@ -1,42 +1,16 @@
 package com.db.ayce.be.service;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Service;
+public interface TavoloTempService {
 
-@Service
-public class TavoloTempService {
+    void addItem(Integer tavoloId, Long prodottoId, int quantita);
 
-    // TavoloId -> (ProdottoId -> Quantità)
-    private final Map<Integer, Map<Long, Integer>> ordineTemp = new ConcurrentHashMap<>();
+    void removeItem(Integer tavoloId, Long prodottoId, int quantita);
 
-    public void addItem(Integer tavoloId, Long prodottoId, int quantita) {
-        ordineTemp.computeIfAbsent(tavoloId, k -> new ConcurrentHashMap<>())
-                  .merge(prodottoId, quantita, Integer::sum);
-    }
+    Map<Long, Integer> getOrdineTemp(Integer tavoloId);
 
-    public void removeItem(Integer tavoloId, Long prodottoId, int quantita) {
-        Map<Long, Integer> tavoloOrdine = ordineTemp.get(tavoloId);
-        if (tavoloOrdine != null) {
-            tavoloOrdine.merge(prodottoId, -quantita, Integer::sum);
-            tavoloOrdine.entrySet().removeIf(e -> e.getValue() <= 0);
-        }
-    }
+    void clearOrdine(Integer tavoloId);
 
-    public Map<Long, Integer> getOrdineTemp(Integer tavoloId) {
-        return ordineTemp.getOrDefault(tavoloId, Map.of());
-    }
-
-    public void clearOrdine(Integer tavoloId) {
-        ordineTemp.remove(tavoloId);
-    }
-
-    public int getTotalePortate(Integer tavoloId) {
-        return ordineTemp.getOrDefault(tavoloId, Map.of())
-                         .values()
-                         .stream()
-                         .mapToInt(Integer::intValue)
-                         .sum();
-    }
+    int getTotalePortate(Integer tavoloId);
 }
