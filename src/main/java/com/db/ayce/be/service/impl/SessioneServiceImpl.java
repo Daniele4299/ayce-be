@@ -1,6 +1,7 @@
 package com.db.ayce.be.service.impl;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.db.ayce.be.dto.ResocontoDto;
 import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.repository.SessioneRepository;
@@ -147,4 +149,20 @@ public class SessioneServiceImpl implements SessioneService {
         }
     }
 
+    @Override
+    public List<ResocontoDto> getResoconto(Long id) {
+		Sessione sessione = sessioneRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessione non trovata"));
+		List<Ordine> ordineList = ordineService.findBySessione(sessione);
+		List<ResocontoDto> resoconto = new ArrayList<>();
+		// Riga per ogni ordine (senza raggruppamento, in ordine di arrivo)
+		for (Ordine ordine : ordineList) {
+			double subtot = ordine.getQuantita() * ordine.getPrezzoUnitario();
+			resoconto.add(new ResocontoDto(ordine.getProdotto().getNome(), ordine.getQuantita(),
+					ordine.getPrezzoUnitario(), subtot, ordine.getOrario(), // supponendo LocalDateTime orario
+					sessione.getTavolo().getNumero(), ordine.getStato() // supponendo String stato
+			));
+		}
+		return resoconto;
+    }
 }

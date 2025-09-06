@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.db.ayce.be.dto.ResocontoDto;
 import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.service.SessioneService;
 
@@ -50,7 +51,7 @@ public class SessioneController {
     }
     
     @GetMapping("/{id}/pdf")
-    public ResponseEntity<byte[]> getSessioneResocontoById(@PathVariable Long id) {
+    public ResponseEntity<byte[]> getSessioneResocontoPdfById(@PathVariable Long id) {
         byte[] pdfBytes = sessioneService.generatePdfResoconto(id);
 
         return ResponseEntity.ok()
@@ -58,6 +59,12 @@ public class SessioneController {
                 .header("Content-Disposition", "inline; filename=sessione_" + id + ".pdf")
                 .body(pdfBytes);
     }
-
+    
+    
+    @GetMapping("/{id}/resoconto")
+    public List<ResocontoDto> getSessioneResocontoById(@PathVariable Long id) {
+        return sessioneService.getResoconto(id);
+    }
+    
     
 }

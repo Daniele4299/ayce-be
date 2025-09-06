@@ -2,6 +2,7 @@ package com.db.ayce.be.service;
 
 import java.util.List;
 
+import com.db.ayce.be.dto.ResocontoDto;
 import com.db.ayce.be.entity.Sessione;
 
 public interface SessioneService {
@@ -11,4 +12,5 @@ public interface SessioneService {
     Sessione update(Long id, Sessione sessione);
     void delete(Long id);
 	byte[] generatePdfResoconto(Long id);
+	List<ResocontoDto> getResoconto(Long id);
 }
