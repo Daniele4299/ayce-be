@@ -1,9 +1,11 @@
 package com.db.ayce.be.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.db.ayce.be.dto.UltimoOrdineDto;
 import com.db.ayce.be.entity.Prodotto;
 import com.db.ayce.be.repository.ProdottoRepository;
 import com.db.ayce.be.service.ProdottoService;
@@ -41,4 +43,10 @@ public class ProdottoServiceImpl implements ProdottoService {
     public void delete(Long id) {
         prodottoRepository.deleteById(id);
     }
+
+	@Override
+	public List<UltimoOrdineDto> getProdottiUtilizzatiUltimoServizio(LocalDateTime inizio, LocalDateTime fine) {
+	    return prodottoRepository.getQuantitaOrdinataGiornata(inizio, fine);
+	}
+
 }

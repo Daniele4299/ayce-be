@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ResocontoDto {
+	private Long id;
     private String nome;             // Nome prodotto o "Quota AYCE" / "Totale finale"
     private int quantita;            // Quantità o numero partecipanti
     private double prezzoUnitario;   // Prezzo unitario

@@ -158,7 +158,7 @@ public class SessioneServiceImpl implements SessioneService {
 		// Riga per ogni ordine (senza raggruppamento, in ordine di arrivo)
 		for (Ordine ordine : ordineList) {
 			double subtot = ordine.getQuantita() * ordine.getPrezzoUnitario();
-			resoconto.add(new ResocontoDto(ordine.getProdotto().getNome(), ordine.getQuantita(),
+			resoconto.add(new ResocontoDto(ordine.getId(), ordine.getProdotto().getNome(), ordine.getQuantita(),
 					ordine.getPrezzoUnitario(), subtot, ordine.getOrario(), // supponendo LocalDateTime orario
 					sessione.getTavolo().getNumero(), ordine.getStato() // supponendo String stato
 			));

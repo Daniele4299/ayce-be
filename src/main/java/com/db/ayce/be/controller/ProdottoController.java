@@ -1,18 +1,40 @@
 package com.db.ayce.be.controller;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.db.ayce.be.dto.UltimoOrdineDto;
 import com.db.ayce.be.entity.Categoria;
 import com.db.ayce.be.entity.Prodotto;
 import com.db.ayce.be.service.CategoriaService;
 import com.db.ayce.be.service.ImageService;
 import com.db.ayce.be.service.ProdottoService;
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Element;
+import com.lowagie.text.Font;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -120,4 +142,75 @@ public class ProdottoController {
         prodottoService.delete(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @GetMapping("/utilizzati/pdf")
+    public void getProdottiUtilizzatiPdf(HttpServletResponse response) throws IOException, DocumentException {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Giorno target:
+        // - Se siamo tra 00:00 e 06:59, il giorno target è ieri (per poter generare il PDF della sera precedente)
+        // - Altrimenti il giorno target è oggi
+        LocalDate giornoTarget = now.toLocalTime().isBefore(LocalTime.of(7, 0))
+                ? now.toLocalDate().minusDays(1)
+                : now.toLocalDate();
+
+        // Intervallo considerato: dalla mezzanotte del giorno target fino alle 07:00 del giorno successivo
+        LocalDateTime inizio = giornoTarget.atStartOfDay();
+        LocalDateTime fine = giornoTarget.plusDays(1).atStartOfDay().plusHours(7);
+
+        List<UltimoOrdineDto> prodottiUsati = prodottoService.getProdottiUtilizzatiUltimoServizio(inizio, fine);
+
+        // Imposta intestazioni HTTP per download PDF
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=prodotti_utilizzati.pdf");
+
+        // Generazione PDF con iText 2 (lowagie)
+        Document document = new Document();
+        PdfWriter.getInstance(document, response.getOutputStream());
+        document.open();
+
+        Font titleFont = new Font(Font.HELVETICA, 16, Font.BOLD);
+        Font headerFont = new Font(Font.HELVETICA, 12, Font.BOLD);
+        Font cellFont = new Font(Font.HELVETICA, 12);
+
+        DateTimeFormatter dataFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        DateTimeFormatter orarioFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+
+        document.add(new Paragraph("Resoconto Prodotti Utilizzati", titleFont));
+        document.add(new Paragraph("Giornata: " + giornoTarget.format(dataFormatter)));
+        document.add(new Paragraph(
+                "Ordini considerati dalle " + inizio.format(orarioFormatter) +
+                " alle " + fine.format(orarioFormatter)
+        ));
+        document.add(new Paragraph("\n"));
+
+        // Tabella prodotti
+        PdfPTable table = new PdfPTable(2);
+        table.setWidthPercentage(100);
+        table.setWidths(new int[]{3, 1});
+
+        // Header
+        PdfPCell h1 = new PdfPCell(new Phrase("Prodotto", headerFont));
+        h1.setHorizontalAlignment(Element.ALIGN_CENTER);
+        table.addCell(h1);
+
+        PdfPCell h2 = new PdfPCell(new Phrase("Quantità", headerFont));
+        h2.setHorizontalAlignment(Element.ALIGN_CENTER);
+        table.addCell(h2);
+
+        // Dati
+        for (UltimoOrdineDto p : prodottiUsati) {
+            PdfPCell c1 = new PdfPCell(new Phrase(p.getNomeProdotto(), cellFont));
+            table.addCell(c1);
+
+            PdfPCell c2 = new PdfPCell(new Phrase(String.valueOf(p.getNumOrdinati()), cellFont));
+            c2.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            table.addCell(c2);
+        }
+
+        document.add(table);
+        document.close();
+    }
+
+
 }
