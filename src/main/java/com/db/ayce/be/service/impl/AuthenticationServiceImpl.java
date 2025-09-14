@@ -64,7 +64,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public ResponseEntity<?> loginTavolo(Integer tavoloNum, HttpServletResponse response) {
         Tavolo tavolo = tavoloService.findByNumero(tavoloNum);
         if (tavolo == null || !Boolean.TRUE.equals(tavolo.getAttivo())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            return ResponseEntity.status(HttpStatus.NOT_FOUND) //404
                     .body(Map.of(Constants.ERROR_KEY, "Tavolo non trovato o non attivo"));
         }
 
@@ -75,9 +75,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .orElse(null);
 
         if (sessioneAttiva == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            return ResponseEntity.status(HttpStatus.CONFLICT) // 409
                     .body(Map.of(Constants.ERROR_KEY, "Nessuna sessione attiva per questo tavolo"));
         }
+        
+        // --- NUOVA LOGICA: se la richiesta è fatta da uno user già autenticato (staff),
+        // non generare/aggiungere il cookie JWT "client" (non sovrascrivere il cookie esistente) ---
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof UserDetails) {
+            // Utente "vero" (staff) — restituisci i dati della sessione, senza toccare i cookie
+            return ResponseEntity.ok(Map.of(
+                    "tavoloId", tavolo.getId(),
+                    "numeroTavolo", tavolo.getNumero(),
+                    "sessioneId", sessioneAttiva.getId(),
+                    "isAyce", sessioneAttiva.getIsAyce()
+            ));
+        }
+        
 
         String token = jwtService.generateClientToken(sessioneAttiva);
         Cookie cookie = new Cookie(Constants.COOKIE_TOKEN, token);

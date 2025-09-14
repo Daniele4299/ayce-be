@@ -15,8 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.db.ayce.be.entity.Ordine;
+import com.db.ayce.be.entity.Prodotto;
 import com.db.ayce.be.entity.Sessione;
+import com.db.ayce.be.service.CucinaWebSocketService;
 import com.db.ayce.be.service.OrdineService;
+import com.db.ayce.be.service.ProdottoService;
 import com.db.ayce.be.service.SessioneService;
 import com.db.ayce.be.utils.AuthUtils;
 import com.db.ayce.be.utils.Constants;
@@ -33,6 +36,12 @@ public class OrdineController {
 	
 	@Autowired
 	SessioneService sessioneService;
+	
+	@Autowired
+	ProdottoService prodottoService;
+	
+	@Autowired
+	CucinaWebSocketService cucinaWebSocketService;
 	
 	@Autowired
 	AuthUtils authUtils;
@@ -65,6 +74,7 @@ public class OrdineController {
 	public void deleteOrdine(@PathVariable Long id) {
 		authUtils.getCurrentUserOrThrow(Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
 		ordineService.delete(id);
+        cucinaWebSocketService.notifyNewOrder(null);
 	}
 	
     @GetMapping("/storico/{sessioneId}")
@@ -73,4 +83,23 @@ public class OrdineController {
         if (sessione == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessione non trovata");
         return ordineService.findBySessione(sessione);
     }
+    
+	@PostMapping("/add-resoconto")
+	public Ordine createOrdineForResoconto(@RequestBody Ordine ordine) {
+		authUtils.getCurrentUserOrThrow(Constants.ROLE_DIPEN, Constants.ROLE_ADMIN);
+		Sessione sessione = sessioneService.findById(ordine.getSessione().getId());
+
+	    Prodotto prodotto = prodottoService.findById(ordine.getProdotto().getId());
+
+	    if (sessione.getIsAyce() && prodotto.getCategoria().getId() < 100L) {
+	        ordine.setPrezzoUnitario(0.0);
+	    }
+
+	    ordine.setSessione(sessione);
+	    ordine.setProdotto(prodotto);
+
+	    Ordine o = ordineService.save(ordine);
+	    cucinaWebSocketService.notifyNewOrder(null);
+	    return o;
+	}
 }

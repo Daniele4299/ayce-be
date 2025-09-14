@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.db.ayce.be.dto.ResocontoDto;
 import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Sessione;
+import com.db.ayce.be.entity.Tavolo;
 import com.db.ayce.be.repository.SessioneRepository;
 import com.db.ayce.be.service.OrdineService;
 import com.db.ayce.be.service.SessioneService;
@@ -87,42 +88,64 @@ public class SessioneServiceImpl implements SessioneService {
                     " - Sessione " + sessione.getId()));
             document.add(new Paragraph(" "));
 
-            // Tabella ordini
-            PdfPTable table = new PdfPTable(4);
-            table.setWidthPercentage(100);
-            table.setWidths(new float[]{4, 1, 2, 2});
+            // Lista ordini con prezzo > 0
+            PdfPTable tablePrezzo = new PdfPTable(4);
+            tablePrezzo.setWidthPercentage(100);
+            tablePrezzo.setWidths(new float[]{4, 1, 2, 2});
 
-            table.addCell("Prodotto");
-            table.addCell("Quantità");
-            table.addCell("Prezzo Unitario");
-            table.addCell("Totale");
+            tablePrezzo.addCell("Prodotto");
+            tablePrezzo.addCell("Quantità");
+            tablePrezzo.addCell("Prezzo Unitario");
+            tablePrezzo.addCell("Totale");
 
             double totale = 0;
 
             for (OrderSummary summary : riepilogo.values()) {
-                double subtot = summary.quantita * summary.prezzoUnitario;
-                totale += subtot;
+                if (summary.prezzoUnitario > 0) {
+                    double subtot = summary.quantita * summary.prezzoUnitario;
+                    totale += subtot;
 
-                table.addCell(summary.nome);
-                table.addCell("x" + summary.quantita);
-                table.addCell(String.format("%.2f €", summary.prezzoUnitario));
-                table.addCell(String.format("%.2f €", subtot));
+                    tablePrezzo.addCell(summary.nome);
+                    tablePrezzo.addCell("x" + summary.quantita);
+                    tablePrezzo.addCell(String.format("%.2f €", summary.prezzoUnitario));
+                    tablePrezzo.addCell(String.format("%.2f €", subtot));
+                }
             }
 
-            // Quote AYCE se attivo
+            // Quota AYCE, se attiva, va nella tabella “prezzata”
             if (Boolean.TRUE.equals(sessione.getIsAyce())) {
                 int ora = sessione.getOrarioInizio().getHour();
                 double prezzoAyce = (ora >= 2 && ora < 16) ? 20.0 : 30.0;
                 double totaleAyce = prezzoAyce * sessione.getNumeroPartecipanti();
                 totale += totaleAyce;
 
-                table.addCell("Quota AYCE");
-                table.addCell("x" + sessione.getNumeroPartecipanti());
-                table.addCell(String.format("%.2f €", prezzoAyce));
-                table.addCell(String.format("%.2f €", totaleAyce));
+                tablePrezzo.addCell("Quota AYCE");
+                tablePrezzo.addCell("x" + sessione.getNumeroPartecipanti());
+                tablePrezzo.addCell(String.format("%.2f €", prezzoAyce));
+                tablePrezzo.addCell(String.format("%.2f €", totaleAyce));
             }
 
-            document.add(table);
+            document.add(tablePrezzo);
+
+            // Lista ordini gratuiti
+            PdfPTable tableGratuita = new PdfPTable(4);
+            tableGratuita.setWidthPercentage(100);
+            tableGratuita.setWidths(new float[]{4, 1, 2, 2});
+
+            for (OrderSummary summary : riepilogo.values()) {
+                if (summary.prezzoUnitario == 0) {
+                    tableGratuita.addCell(summary.nome);
+                    tableGratuita.addCell("x" + summary.quantita);
+                    tableGratuita.addCell("-");
+                    tableGratuita.addCell("0,00 €");
+                }
+            }
+
+            // Aggiungi tabella gratuita solo se ha righe
+            if (tableGratuita.getRows().size() > 0) {
+                document.add(new Paragraph(" "));
+                document.add(tableGratuita);
+            }
 
             document.add(new Paragraph(" "));
             document.add(new Paragraph("Totale finale: " + String.format("%.2f €", totale)));
@@ -135,6 +158,7 @@ public class SessioneServiceImpl implements SessioneService {
             throw new RuntimeException("Errore nella generazione del PDF", e);
         }
     }
+
 
     // Classe helper per il riepilogo
     private static class OrderSummary {
@@ -165,4 +189,17 @@ public class SessioneServiceImpl implements SessioneService {
 		}
 		return resoconto;
     }
+    
+    @Override
+    public Sessione findAttivaByTavolo(Tavolo tavolo) {
+        return sessioneRepository.findByTavoloAndStato(tavolo, "ATTIVA").orElse(null);
+    }
+
+	@Override
+	public Sessione findAttivaById(Long sessioneId) {
+		return sessioneRepository.findById(sessioneId)
+                .filter(sessione -> "ATTIVA".equalsIgnoreCase(sessione.getStato()))
+                .orElse(null);
+	}
+
 }

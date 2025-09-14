@@ -32,13 +32,14 @@ public final class Constants {
     public static final String MSG_ADD_ITEM_TEMP = "ADD_ITEM_TEMP";
     public static final String MSG_REMOVE_ITEM_TEMP = "REMOVE_ITEM_TEMP";
     public static final String MSG_UPDATE_TEMP = "UPDATE_TEMP";
+    public static final String MSG_WARNING = "WARNING";
     public static final String MSG_ERROR = "ERROR";
     public static final String MSG_GET_STATUS = "GET_STATUS";
+    public static final String MSG_UPDATE_TEMP_DELTA = "UPDATE_TEMP_DELTA";
+    public static final String MSG_CLEAR_TEMP = "CLEAR_TEMP";
+
     public static final String ERR_LIMIT_PORTATE = "Limite portate raggiunto";
-    public static final String ERR_LIMIT_PRODOTTO = "Limite per questo prodotto raggiunto (max %d - 1 a persona per sessione)";
-    public static final String ERR_MAX_PRODOTTO_SESSIONE = "Puoi aggiungere al massimo %d di questo prodotto per la sessione";
-    public static final String ERR_NESSUNA_QUANTITA = "Nessuna quantità disponibile per ";
-    public static final String ERR_QUANTITA_RIDOTTA = "Quantità per ";
+    public static final String ERR_LIMIT_PRODOTTO = "Limite per questo prodotto raggiunto (1 a persona per sessione)";
     public static final String ORDINE_STATO_INVIATO = "INVIATO";
 
     
@@ -47,10 +48,7 @@ public final class Constants {
     
     // Tipi messaggi WebSocket condivisi
     public static final String MSG_ORDER_SENT = "ORDER_SENT";
-
-    // Limiti
-    public static final int MAX_PORTATE_PER_PERSONA = 5;
-    public static final int COOLDOWN_MINUTI_ORDINE = 15;
+    public static final String MSG_REFRESH = "REFRESH";
     
     public static final String HEADER_AUTHORIZATION = "Authorization";
     public static final String HEADER_COOKIE = "cookie";

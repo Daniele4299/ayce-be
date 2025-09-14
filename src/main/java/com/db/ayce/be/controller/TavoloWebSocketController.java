@@ -2,6 +2,9 @@ package com.db.ayce.be.controller;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -9,6 +12,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 
 import com.db.ayce.be.dto.TavoloMessage;
@@ -17,6 +21,7 @@ import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Prodotto;
 import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.service.CucinaWebSocketService;
+import com.db.ayce.be.service.ImpostazioniService;
 import com.db.ayce.be.service.OrdineService;
 import com.db.ayce.be.service.ProdottoService;
 import com.db.ayce.be.service.SessioneService;
@@ -38,6 +43,7 @@ public class TavoloWebSocketController {
     private final SessioneService sessioneService;
     private final ProdottoService prodottoService;
     private final CucinaWebSocketService cucinaWebSocketService;
+    private final ImpostazioniService impostazioniService;
     
     private final ConcurrentMap<Integer, Object> tavoloLocks = new ConcurrentHashMap<>();
     
@@ -47,9 +53,18 @@ public class TavoloWebSocketController {
 
     @MessageMapping("/tavolo")
     public void handleTavoloMessage(TavoloMessage msg, Principal principal) throws Exception {
-        Claims claims = extractClaims(principal);
-        Sessione sessione = getSessioneAttiva(claims);
-        Integer tavoloId = sessione.getTavolo().getId();
+    	Sessione sessione;
+    	Integer tavoloId;
+    	if (principal instanceof UsernamePasswordAuthenticationToken auth
+    	        && auth.getPrincipal() instanceof UserDetails) {
+    	    sessione = sessioneService.findAttivaById(msg.getSessioneId());
+    	    tavoloId = sessione.getTavolo().getId();
+    	} else {
+        	Claims claims = extractClaims(principal);
+            sessione = getSessioneAttiva(claims);
+            tavoloId = sessione.getTavolo().getId();
+
+    	}
 
         switch (msg.getTipoEvento()) {
             case Constants.MSG_ADD_ITEM_TEMP, Constants.MSG_REMOVE_ITEM_TEMP -> handleTempItem(msg, sessione, tavoloId);
@@ -61,12 +76,23 @@ public class TavoloWebSocketController {
 
     private Claims extractClaims(Principal principal) throws IllegalAccessException {
         if (!(principal instanceof UsernamePasswordAuthenticationToken auth)
-                || !(auth.getPrincipal() instanceof Claims claims)
-                || !Constants.ROLE_CLIENT.equals(claims.get(Constants.CLAIM_ROLE))) {
+                || !(
+                     (auth.getPrincipal() instanceof Claims claims
+                         && Constants.ROLE_CLIENT.equals(claims.get(Constants.CLAIM_ROLE)))
+                     || auth.getPrincipal() instanceof UserDetails  // <-- staff loggato passa
+                   )) {
             throw new IllegalAccessException("Utente non autorizzato");
         }
-        return (Claims) ((UsernamePasswordAuthenticationToken) principal).getPrincipal();
+
+        // Se è un client, ritorna i Claims
+        if (auth.getPrincipal() instanceof Claims claims) {
+            return claims;
+        }
+
+        // Altrimenti è staff loggato, ritorna null
+        return null;
     }
+
 
     private Sessione getSessioneAttiva(Claims claims) {
         Long sessioneId = claims.get(Constants.CLAIM_SESSIONE_ID, Long.class);
@@ -77,143 +103,192 @@ public class TavoloWebSocketController {
     }
 
     private void handleTempItem(TavoloMessage msg, Sessione sessione, Integer tavoloId) throws Exception {
-        TavoloMessagePayload payload = objectMapper.readValue(msg.getPayload(), TavoloMessagePayload.class);
-        Long prodottoId = payload.getProdottoId();
-        int delta = msg.getTipoEvento().equals(Constants.MSG_REMOVE_ITEM_TEMP) ? -payload.getQuantita() : payload.getQuantita();
-        Prodotto prodotto = prodottoService.findById(prodottoId);
+        synchronized (getLockForTavolo(tavoloId)) {
+            TavoloMessagePayload payload = objectMapper.readValue(msg.getPayload(), TavoloMessagePayload.class);
+            Long prodottoId = payload.getProdottoId();
+            int delta = msg.getTipoEvento().equals(Constants.MSG_REMOVE_ITEM_TEMP) ? -payload.getQuantita() : payload.getQuantita();
+            Prodotto prodotto = prodottoService.findById(prodottoId);
 
-        // Controllo massimo portate solo per prodotti normali
-        if (Boolean.TRUE.equals(sessione.getIsAyce()) && isProdottoNormale(prodotto)) {
-            int totalePortate = tavoloTempService.getOrdineTemp(tavoloId).entrySet().stream()
-                    .mapToInt(e -> isProdottoNormale(prodottoService.findById(e.getKey())) ? e.getValue() : 0).sum();
-            int maxPortate = sessione.getNumeroPartecipanti() * Constants.MAX_PORTATE_PER_PERSONA;
-            if (totalePortate + delta > maxPortate) {
-                sendError(tavoloId, Constants.ERR_LIMIT_PORTATE);
-                return;
+            if (Boolean.TRUE.equals(sessione.getIsAyce()) && isProdottoNormale(prodotto)) {
+                int totalePortate = tavoloTempService.getOrdineTemp(tavoloId).entrySet().stream()
+                        .mapToInt(e -> isProdottoNormale(prodottoService.findById(e.getKey())) ? e.getValue() : 0).sum();
+                int maxPortate = sessione.getNumeroPartecipanti() * impostazioniService.getIntValue("portate_per_persona", 5);
+
+                if (totalePortate + delta > maxPortate) {
+                    sendError(tavoloId, Constants.ERR_LIMIT_PORTATE);
+                    return;
+                }
             }
+
+            if (Boolean.TRUE.equals(sessione.getIsAyce()) && prodotto != null
+                    && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti()) && delta > 0) {
+                int restante = sessione.getNumeroPartecipanti() - ordineService.findBySessione(sessione).stream()
+                        .filter(o -> prodottoId.equals(o.getProdotto().getId()))
+                        .mapToInt(Ordine::getQuantita).sum()
+                        - tavoloTempService.getOrdineTemp(tavoloId).getOrDefault(prodottoId, 0);
+
+                if (restante <= 0) {
+                    sendError(tavoloId, Constants.ERR_LIMIT_PRODOTTO);
+                    return;
+                }
+            }
+
+            if (delta > 0) tavoloTempService.addItem(tavoloId, prodottoId, delta);
+            else tavoloTempService.removeItem(tavoloId, prodottoId, -delta);
+
+            int nuovaQuantita = tavoloTempService.getOrdineTemp(tavoloId).getOrDefault(prodottoId, 0);
+            sendUpdateTempDelta(tavoloId, prodottoId, nuovaQuantita);
         }
-
-        // Controllo prodotti limitati
-        if (Boolean.TRUE.equals(sessione.getIsAyce()) && prodotto != null
-                && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti()) && delta > 0) {
-
-            int restante = sessione.getNumeroPartecipanti() - ordineService.findBySessione(sessione).stream()
-                    .filter(o -> prodottoId.equals(o.getProdotto().getId()))
-                    .mapToInt(Ordine::getQuantita).sum()
-                    - tavoloTempService.getOrdineTemp(tavoloId).getOrDefault(prodottoId, 0);
-
-            if (restante <= 0) {
-                sendError(tavoloId, String.format(Constants.ERR_LIMIT_PRODOTTO, sessione.getNumeroPartecipanti()));
-                return;
-            }
-            if (delta > restante) {
-                sendError(tavoloId, String.format(Constants.ERR_MAX_PRODOTTO_SESSIONE, restante));
-                return;
-            }
-        }
-
-        // Aggiorno ordine temporaneo
-        if (delta > 0) tavoloTempService.addItem(tavoloId, prodottoId, delta);
-        else tavoloTempService.removeItem(tavoloId, prodottoId, -delta);
-        sendUpdateTemp(tavoloId);
     }
 
     private void handleOrderSent(Sessione sessione, Integer tavoloId) throws Exception {
-    	synchronized(getLockForTavolo(tavoloId)) {
-	        boolean isCooldownActive = false;
-	        long minutiPassati = 0L;
-	    	if (Boolean.TRUE.equals(sessione.getIsAyce()) && sessione.getUltimoOrdineInviato() != null) {
-	            LocalDateTime ora = LocalDateTime.now();
-	            LocalDateTime ultimoOrdine = sessione.getUltimoOrdineInviato();
-	            minutiPassati = java.time.Duration.between(ultimoOrdine, ora).toMinutes();
-	            if (minutiPassati < Constants.COOLDOWN_MINUTI_ORDINE) {
-	            	isCooldownActive = true;
-	            }
-	        }
-	    	
-	    	Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
-	        StringBuilder warning = new StringBuilder();
-	        boolean savedAnyNormalProduct = false;
-	        
-	        
-	
-	        for (Map.Entry<Long, Integer> e : ordineTemp.entrySet()) {
-	            Long prodottoId = e.getKey();
-	            Integer quantita = e.getValue();
-	            if (quantita == null || quantita <= 0) continue;
-	
-	            Prodotto prodotto = prodottoService.findById(prodottoId);
-	            if (prodotto == null) continue;
-	            if (prodotto.getCategoria().getId() < 100L && isCooldownActive) {
-	                long minutiRimanenti = Constants.COOLDOWN_MINUTI_ORDINE - minutiPassati;
-	                sendError(tavoloId, "Devi attendere ancora " + minutiRimanenti + " minuti prima di inviare un nuovo ordine.");
-	                return;
-	            }
-	
-	            if (Boolean.TRUE.equals(sessione.getIsAyce()) && Boolean.TRUE.equals(prodotto.getIsLimitedPartecipanti()) && isProdottoNormale(prodotto)) {
-	                int confermati = ordineService.findBySessione(sessione).stream()
-	                        .filter(o -> prodottoId.equals(o.getProdotto().getId()))
-	                        .mapToInt(Ordine::getQuantita).sum();
-	
-	                int restante = sessione.getNumeroPartecipanti() - confermati;
-	                if (restante <= 0) {
-	                    warning.append(Constants.ERR_NESSUNA_QUANTITA).append(prodotto.getNome()).append(". ");
-	                    continue;
-	                }
-	                if (quantita > restante) {
-	                    warning.append(Constants.ERR_QUANTITA_RIDOTTA).append(prodotto.getNome()).append(" a ").append(restante).append(". ");
-	                    quantita = restante;
-	                }
-	            }
-	
-	            Ordine ordine = new Ordine();
-	            ordine.setFlagConsegnato(false);
-	            ordine.setOrario(LocalDateTime.now());
-	            ordine.setPrezzoUnitario(Boolean.TRUE.equals(sessione.getIsAyce()) && prodotto.getCategoria().getId() < 100L ? 0 : prodotto.getPrezzo());
-	            ordine.setProdotto(prodotto);
-	            ordine.setQuantita(quantita);
-	            ordine.setSessione(sessione);
-	            ordine.setStato(Constants.ORDINE_STATO_INVIATO);
-	            ordine.setTavolo(sessione.getTavolo());
-	            ordineService.save(ordine);
-	            
-	            cucinaWebSocketService.notifyNewOrder(ordine.getId());
-	
-	            if (isProdottoNormale(prodotto)) savedAnyNormalProduct = true;
-	        }
-	
-	        tavoloTempService.clearOrdine(tavoloId);
-	        if (Boolean.TRUE.equals(sessione.getIsAyce()) && savedAnyNormalProduct) {
-	            sessione.setUltimoOrdineInviato(LocalDateTime.now());
-	            sessioneService.save(sessione);
-	            messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId, new TavoloMessage(Constants.MSG_ORDER_SENT, ""));
-	        }
-	        sendUpdateTemp(tavoloId);
-	        if (warning.length() > 0) sendError(tavoloId, warning.toString());
-    	}
+        synchronized(getLockForTavolo(tavoloId)) {
+        	boolean isError = false;
+        	boolean isWarning = false;
+            boolean isAyce = Boolean.TRUE.equals(sessione.getIsAyce());
+            LocalDateTime ultimoOrdine = sessione.getUltimoOrdineInviato();
+
+            boolean isCucinaAttiva = impostazioniService.findByChiave("cucina_attiva")
+                    .map(i -> !"0".equals(i.getValore()))
+                    .orElse(true);
+
+            boolean isCooldownActive = isAyce 
+                    && ultimoOrdine != null
+                    && java.time.Duration.between(ultimoOrdine, LocalDateTime.now()).toMinutes() < impostazioniService.getIntValue("tempo_cooldown", 15);
+
+
+            Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
+            if (ordineTemp.isEmpty()) {
+                sendError(tavoloId, "Non ci sono prodotti da inviare.");
+                isError = true;
+                return;
+            }
+
+            List<Ordine> ordineDaSalvare = new ArrayList<>();
+            boolean hasNormalProduct = false;
+
+            for (Map.Entry<Long, Integer> e : ordineTemp.entrySet()) {
+                Long prodottoId = e.getKey();
+                Integer quantita = e.getValue();
+                if (quantita == null || quantita <= 0) continue;
+
+                Prodotto prodotto = prodottoService.findById(prodottoId);
+                if (prodotto == null) continue;
+
+                boolean isNormale = isProdottoNormale(prodotto);
+                if (isNormale) hasNormalProduct = true;
+
+                if (isNormale && (!isCucinaAttiva || isCooldownActive)) continue;
+
+                Ordine ordine = new Ordine();
+                ordine.setFlagConsegnato(false);
+                ordine.setOrario(LocalDateTime.now());
+                ordine.setProdotto(prodotto);
+                ordine.setQuantita(quantita);
+                ordine.setSessione(sessione);
+                ordine.setTavolo(sessione.getTavolo());
+                ordine.setStato(Constants.ORDINE_STATO_INVIATO);
+                ordine.setPrezzoUnitario((isAyce && isNormale) ? 0 : prodotto.getPrezzo());
+                ordineDaSalvare.add(ordine);
+            }
+
+            if (hasNormalProduct && ordineDaSalvare.isEmpty()) {
+                String msg = !isCucinaAttiva ? "La cucina è chiusa, puoi inviare solo bevande/vini/dessert."
+                        : "Devi attendere prima di inviare un nuovo ordine. Puoi inviare bevande/vini/dessert.";
+                sendError(tavoloId, msg);
+                isError = true;
+                return;
+            }
+
+            ordineDaSalvare.forEach(ordineService::save);
+
+            if (isAyce && ordineDaSalvare.stream().anyMatch(o -> isProdottoNormale(o.getProdotto()))) {
+                sessione.setUltimoOrdineInviato(LocalDateTime.now());
+                sessioneService.save(sessione);
+            }
+
+            // Rimuovi solo i prodotti che sono stati salvati
+            for (Ordine ordine : ordineDaSalvare) {
+                Long prodottoId = ordine.getProdotto().getId();
+                int quantita = ordine.getQuantita();
+                tavoloTempService.removeItem(tavoloId, prodottoId, quantita);
+                sendUpdateTempDelta(tavoloId, prodottoId, 
+                tavoloTempService.getOrdineTemp(tavoloId).getOrDefault(prodottoId, 0));
+            }
+
+
+            if (!ordineDaSalvare.isEmpty()) cucinaWebSocketService.notifyNewOrder(null);
+
+            if (hasNormalProduct && ordineDaSalvare.stream().allMatch(o -> !isProdottoNormale(o.getProdotto()))) {
+                sendWarning(tavoloId, "Sono stati inviati solamente i prodotti delle categorie bevande/vini/dessert. Il resto è ancora nel carrello.");
+                isWarning = true;
+            }
+
+            sendStatus(sessione, tavoloId);
+            
+            if(!isError && !isWarning) {
+            	 messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId, new TavoloMessage("SUCCESS", sessione.getId(), "Ordine inviato con successo"));
+            }
+           
+        }
     }
 
     private void sendStatus(Sessione sessione, Integer tavoloId) throws Exception {
         Map<Long, Integer> ordineTemp = tavoloTempService.getOrdineTemp(tavoloId);
+        Map<String, Object> payload = new HashMap<>();
+
+        payload.put("ordine", ordineTemp);
+        payload.put("lastOrder", sessione.getUltimoOrdineInviato()); // null ok
+        payload.put("cooldownMinuti", impostazioniService.getIntValue("tempo_cooldown", 15));
+        payload.put("maxPortatePerPersona", impostazioniService.getIntValue("portate_per_persona", 5));
+        payload.put("numeroPartecipanti", sessione.getNumeroPartecipanti());
+        payload.put("pranzoStartHour", impostazioniService.getIntValue("ora_inizio_pranzo", 2));
+        payload.put("pranzoEndHour", impostazioniService.getIntValue("ora_inizio_cena", 16));
+        payload.put("isAyce", sessione.getIsAyce());
+
         messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId,
-                new TavoloMessage(Constants.MSG_UPDATE_TEMP,
-                        objectMapper.writeValueAsString(Map.of(
-                                "ordine", ordineTemp,
-                                "lastOrder", sessione.getUltimoOrdineInviato()
-                        ))));
+                new TavoloMessage(Constants.MSG_UPDATE_TEMP, sessione.getId(), objectMapper.writeValueAsString(payload)));
     }
 
-    private void sendUpdateTemp(Integer tavoloId) throws Exception {
-        Map<Long, Integer> ordineAggiornato = tavoloTempService.getOrdineTemp(tavoloId);
-        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId,
-                new TavoloMessage(Constants.MSG_UPDATE_TEMP, objectMapper.writeValueAsString(ordineAggiornato)));
-    }
 
     private void sendError(Integer tavoloId, String msg) {
-        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId, new TavoloMessage(Constants.MSG_ERROR, msg));
+        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId, new TavoloMessage(Constants.MSG_ERROR, null, msg));
+    }
+    
+    private void sendWarning(Integer tavoloId, String msg) {
+        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId, new TavoloMessage(Constants.MSG_WARNING, null, msg));
     }
 
     private boolean isProdottoNormale(Prodotto p) {
         return p != null && p.getCategoria() != null && p.getCategoria().getId() < 100;
     }
+    
+    private void sendUpdateTempDelta(Integer tavoloId, Long prodottoId, int quantita) throws Exception {
+        Map<String, Object> payload = Map.of(
+                "prodottoId", prodottoId,
+                "quantita", quantita
+        );
+        messagingTemplate.convertAndSend("/topic/tavolo/" + tavoloId,
+                new TavoloMessage(Constants.MSG_UPDATE_TEMP_DELTA, null, objectMapper.writeValueAsString(payload)));
+    }
+    
+    public void clearTavoloQueue(Integer tavoloId) {
+        // Rimuovi ordini temporanei
+        tavoloTempService.clearOrdine(tavoloId);
+
+        // Notifica il client
+        messagingTemplate.convertAndSend(
+            "/topic/tavolo/" + tavoloId,
+            new TavoloMessage(Constants.MSG_REFRESH, null, "Refresh forzato della pagina")
+        );
+    }
+    
+    public void sendRefresh(Integer tavoloId) {
+        messagingTemplate.convertAndSend(
+            "/topic/tavolo/" + tavoloId,
+            new TavoloMessage(Constants.MSG_REFRESH, null, "Refresh forzato della pagina")
+        );
+    }
+
+
 }

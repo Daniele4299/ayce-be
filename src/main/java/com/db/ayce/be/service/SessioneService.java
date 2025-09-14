@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.db.ayce.be.dto.ResocontoDto;
 import com.db.ayce.be.entity.Sessione;
+import com.db.ayce.be.entity.Tavolo;
 
 public interface SessioneService {
     List<Sessione> findAll();
@@ -13,4 +14,6 @@ public interface SessioneService {
     void delete(Long id);
 	byte[] generatePdfResoconto(Long id);
 	List<ResocontoDto> getResoconto(Long id);
+    Sessione findAttivaByTavolo(Tavolo tavolo);
+	Sessione findAttivaById(Long sessioneId);
 }

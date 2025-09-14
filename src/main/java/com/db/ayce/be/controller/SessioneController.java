@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.db.ayce.be.dto.ResocontoDto;
 import com.db.ayce.be.entity.Sessione;
+import com.db.ayce.be.entity.Tavolo;
+import com.db.ayce.be.service.CucinaWebSocketService;
 import com.db.ayce.be.service.SessioneService;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,8 @@ import lombok.RequiredArgsConstructor;
 public class SessioneController {
 
     private final SessioneService sessioneService;
+    private final TavoloWebSocketController tavoloWebSocketController;
+    private final CucinaWebSocketService cucinaWebSocketService;
 
     @GetMapping
     public List<Sessione> getAllSessioni() {
@@ -36,8 +40,14 @@ public class SessioneController {
     }
 
     @PostMapping
-    public Sessione createSessione(@RequestBody Sessione sessione) {
-        return sessioneService.save(sessione);
+    public ResponseEntity<Sessione> createSessione(@RequestBody Sessione sessione) {
+        Tavolo tavolo = sessione.getTavolo();
+        Sessione attiva = sessioneService.findAttivaByTavolo(tavolo);
+        if (attiva != null) {
+            return ResponseEntity.status(409).build();
+        }
+        Sessione nuova = sessioneService.save(sessione);
+        return ResponseEntity.ok(nuova);
     }
 
     @PutMapping("/{id}")
@@ -66,5 +76,19 @@ public class SessioneController {
         return sessioneService.getResoconto(id);
     }
     
+    @PutMapping("/{id}/disattiva")
+    public Sessione disattivaSessione(@PathVariable Long id, @RequestBody Sessione sessione) {
+        Sessione s = sessioneService.update(id, sessione);
+        tavoloWebSocketController.clearTavoloQueue(sessione.getTavolo().getId());
+        cucinaWebSocketService.notifyNewOrder(null);
+        return s;
+    }
+    
+    @PutMapping("/{id}/reset-timer")
+    public Sessione resetTimer(@PathVariable Long id, @RequestBody Sessione sessione) {
+        Sessione s = sessioneService.update(id, sessione);
+        tavoloWebSocketController.sendRefresh(sessione.getTavolo().getId());
+        return s;
+    }
     
 }
