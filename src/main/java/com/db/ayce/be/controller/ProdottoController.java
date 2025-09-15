@@ -144,27 +144,31 @@ public class ProdottoController {
     }
     
     @GetMapping("/utilizzati/pdf")
-    public void getProdottiUtilizzatiPdf(HttpServletResponse response) throws IOException, DocumentException {
+    public void getProdottiUtilizzatiPdf(
+            @RequestParam(value = "data", required = false) String dataStr,
+            HttpServletResponse response
+    ) throws IOException, DocumentException {
         LocalDateTime now = LocalDateTime.now();
+        LocalDate giornoTarget;
 
-        // Giorno target:
-        // - Se siamo tra 00:00 e 06:59, il giorno target è ieri (per poter generare il PDF della sera precedente)
-        // - Altrimenti il giorno target è oggi
-        LocalDate giornoTarget = now.toLocalTime().isBefore(LocalTime.of(7, 0))
-                ? now.toLocalDate().minusDays(1)
-                : now.toLocalDate();
+        if (dataStr != null) {
+            // input fornito nel formato YYYY-MM-DD
+            giornoTarget = LocalDate.parse(dataStr);
+        } else {
+            // comportamento default
+            giornoTarget = now.toLocalTime().isBefore(LocalTime.of(7, 0))
+                    ? now.toLocalDate().minusDays(1)
+                    : now.toLocalDate();
+        }
 
-        // Intervallo considerato: dalla mezzanotte del giorno target fino alle 07:00 del giorno successivo
         LocalDateTime inizio = giornoTarget.atStartOfDay();
         LocalDateTime fine = giornoTarget.plusDays(1).atStartOfDay().plusHours(7);
 
         List<UltimoOrdineDto> prodottiUsati = prodottoService.getProdottiUtilizzatiUltimoServizio(inizio, fine);
 
-        // Imposta intestazioni HTTP per download PDF
         response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition", "attachment; filename=prodotti_utilizzati.pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=prodotti_utilizzati_" + giornoTarget + ".pdf");
 
-        // Generazione PDF con iText 2 (lowagie)
         Document document = new Document();
         PdfWriter.getInstance(document, response.getOutputStream());
         document.open();
@@ -184,12 +188,10 @@ public class ProdottoController {
         ));
         document.add(new Paragraph("\n"));
 
-        // Tabella prodotti
         PdfPTable table = new PdfPTable(2);
         table.setWidthPercentage(100);
         table.setWidths(new int[]{3, 1});
 
-        // Header
         PdfPCell h1 = new PdfPCell(new Phrase("Prodotto", headerFont));
         h1.setHorizontalAlignment(Element.ALIGN_CENTER);
         table.addCell(h1);
@@ -198,7 +200,6 @@ public class ProdottoController {
         h2.setHorizontalAlignment(Element.ALIGN_CENTER);
         table.addCell(h2);
 
-        // Dati
         for (UltimoOrdineDto p : prodottiUsati) {
             PdfPCell c1 = new PdfPCell(new Phrase(p.getNomeProdotto(), cellFont));
             table.addCell(c1);
@@ -211,6 +212,7 @@ public class ProdottoController {
         document.add(table);
         document.close();
     }
+
 
 
 }

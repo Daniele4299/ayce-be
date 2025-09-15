@@ -1,6 +1,7 @@
 package com.db.ayce.be.service.impl;
 
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -201,5 +202,11 @@ public class SessioneServiceImpl implements SessioneService {
                 .filter(sessione -> "ATTIVA".equalsIgnoreCase(sessione.getStato()))
                 .orElse(null);
 	}
+
+	@Override
+	public List<Sessione> findByPeriodo(LocalDateTime inizio, LocalDateTime fine) {
+	    return sessioneRepository.findByOrarioInizioBetween(inizio, fine);
+	}
+
 
 }

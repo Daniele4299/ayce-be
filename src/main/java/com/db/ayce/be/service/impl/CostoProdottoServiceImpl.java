@@ -1,0 +1,50 @@
+package com.db.ayce.be.service.impl;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.db.ayce.be.entity.CostoProdotto;
+import com.db.ayce.be.entity.Prodotto;
+import com.db.ayce.be.repository.CostoProdottoRepository;
+import com.db.ayce.be.repository.ProdottoRepository;
+import com.db.ayce.be.service.CostoProdottoService;
+
+@Service
+@Transactional
+public class CostoProdottoServiceImpl implements CostoProdottoService {
+
+    @Autowired
+    private CostoProdottoRepository costoProdottoRepository;
+
+    @Autowired
+    private ProdottoRepository prodottoRepository;
+
+    @Override
+    public List<CostoProdotto> getAll() {
+        return costoProdottoRepository.findAll();
+    }
+
+    @Override
+    public CostoProdotto saveOrUpdate(Long prodottoId, Double costo) {
+        Optional<CostoProdotto> existing = costoProdottoRepository.findByProdottoId(prodottoId);
+
+        Prodotto prodotto = prodottoRepository.findById(prodottoId)
+                .orElseThrow(() -> new RuntimeException("Prodotto non trovato"));
+
+        CostoProdotto cp;
+        if (existing.isPresent()) {
+            cp = existing.get();
+            cp.setCosto(costo);
+        } else {
+            cp = new CostoProdotto();
+            cp.setProdotto(prodotto);
+            cp.setCosto(costo);
+        }
+
+        return costoProdottoRepository.save(cp);
+    }
+}

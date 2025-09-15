@@ -1,5 +1,6 @@
 package com.db.ayce.be.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.db.ayce.be.dto.ResocontoDto;
@@ -16,4 +17,5 @@ public interface SessioneService {
 	List<ResocontoDto> getResoconto(Long id);
     Sessione findAttivaByTavolo(Tavolo tavolo);
 	Sessione findAttivaById(Long sessioneId);
+	List<Sessione> findByPeriodo(LocalDateTime inizio, LocalDateTime fine);
 }

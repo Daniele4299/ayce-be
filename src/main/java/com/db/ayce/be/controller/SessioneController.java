@@ -1,5 +1,7 @@
 package com.db.ayce.be.controller;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.db.ayce.be.dto.ResocontoDto;
@@ -90,5 +93,16 @@ public class SessioneController {
         tavoloWebSocketController.sendRefresh(sessione.getTavolo().getId());
         return s;
     }
+    
+    @GetMapping("/by-day")
+    public List<Sessione> getSessioniByDay(@RequestParam String data) {
+        // data in formato YYYY-MM-DD
+        LocalDate giorno = LocalDate.parse(data);
+        LocalDateTime inizio = giorno.atStartOfDay();
+        LocalDateTime fine = giorno.plusDays(1).atStartOfDay();
+
+        return sessioneService.findByPeriodo(inizio, fine);
+    }
+
     
 }
