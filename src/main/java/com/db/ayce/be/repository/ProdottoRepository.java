@@ -16,13 +16,17 @@ public interface ProdottoRepository extends JpaRepository<Prodotto, Long> {
 	@Query("""
 		    SELECT new com.db.ayce.be.dto.UltimoOrdineDto(o.prodotto.nome, SUM(o.quantita))
 		    FROM Ordine o
-		    WHERE o.orario >= :inizio AND o.orario < :fine
+		    JOIN o.sessione s
+		    WHERE o.orario >= :inizio 
+		      AND o.orario < :fine
+		      AND s.isDeleted = false
 		    GROUP BY o.prodotto.nome
 		    """)
 		List<UltimoOrdineDto> getQuantitaOrdinataGiornata(
 		        @Param("inizio") LocalDateTime inizio,
 		        @Param("fine") LocalDateTime fine
 		);
+
 
 	List<Prodotto> findByIsDeletedFalse();
 
