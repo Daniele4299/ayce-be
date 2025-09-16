@@ -14,6 +14,9 @@ public interface CostoProdottoRepository extends JpaRepository<CostoProdotto, Lo
 
 	@Query("SELECT cp FROM CostoProdotto cp WHERE cp.prodotto.id = :prodottoId AND cp.prodotto.isDeleted = false")
 	Optional<CostoProdotto> findByProdottoId(@Param("prodottoId") Long prodottoId);
+	
+	@Query("SELECT cp FROM CostoProdotto cp WHERE cp.prodotto.id = :prodottoId")
+	Optional<CostoProdotto> findByProdottoIdIgnoreDelete(@Param("prodottoId") Long prodottoId);
 
 }
 

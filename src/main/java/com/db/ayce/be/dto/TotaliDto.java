@@ -14,4 +14,7 @@ public class TotaliDto {
     private int sessioniCarta;
     private int aycePranzi;
     private int ayceCene;
+    private int personeAycePranzo;
+    private int personeAyceCena;
+    private int personeCarta;
 }

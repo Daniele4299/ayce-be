@@ -7,7 +7,6 @@ import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -24,7 +23,6 @@ import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.repository.CostoProdottoRepository;
 import com.db.ayce.be.repository.ImpostazioniRepository;
 import com.db.ayce.be.repository.OrdineRepository;
-import com.db.ayce.be.repository.ProdottoRepository;
 import com.db.ayce.be.repository.SessioneRepository;
 import com.db.ayce.be.service.StatisticheService;
 
@@ -37,9 +35,6 @@ public class StatisticheServiceImpl implements StatisticheService {
 
     @Autowired
     private SessioneRepository sessioneRepo;
-    
-    @Autowired
-    private ProdottoRepository prodottoRepo;
 
     @Autowired
     private CostoProdottoRepository costoRepo;
@@ -121,29 +116,40 @@ public class StatisticheServiceImpl implements StatisticheService {
 
             Long pid = o.getProdotto() != null ? o.getProdotto().getId() : null;
             if (pid != null) {
-                Optional<CostoProdotto> cp = costoRepo.findByProdottoId(pid);
+            	Optional<CostoProdotto> cp = costoRepo.findByProdottoIdIgnoreDelete(pid);
                 double costoUnit = cp.map(CostoProdotto::getCosto).orElse(0.0);
                 totaleCosti += costoUnit * qty;
             }
         }
 
+        int personeAycePranzo = 0;
+        int personeAyceCena = 0;
+        int personeCarta = 0;
+
         // Calcolo sessioni e suddivisione pranzi/cene
         for (Sessione s : sessioni) {
+            int partecipanti = s.getNumeroPartecipanti() != null ? s.getNumeroPartecipanti() : 0;
             if (Boolean.TRUE.equals(s.getIsAyce())) {
                 sessioniAyce++;
-                if (isPranzo(s)) aycePranzi++;
-                else ayceCene++;
+                if (isPranzo(s)) {
+                    aycePranzi++;
+                    personeAycePranzo += partecipanti;
+                } else {
+                    ayceCene++;
+                    personeAyceCena += partecipanti;
+                }
 
                 double quota = isPranzo(s) ? 20.0 : 30.0;
-                int partecipanti = s.getNumeroPartecipanti() != null ? s.getNumeroPartecipanti() : 0;
                 totaleLordo += quota * partecipanti;
             } else {
-                sessioniCarta++;
+            	sessioniCarta++;
+                personeCarta += partecipanti;
             }
         }
 
+
         double netto = totaleLordo - totaleCosti;
-        return new TotaliDto(round(totaleLordo), round(netto), sessioniAyce, sessioniCarta, aycePranzi, ayceCene);
+        return new TotaliDto(round(totaleLordo), round(netto), sessioniAyce, sessioniCarta, aycePranzi, ayceCene, personeAycePranzo, personeAyceCena, personeCarta);
     }
 
 
@@ -152,7 +158,7 @@ public class StatisticheServiceImpl implements StatisticheService {
     	Optional<Sessione> sOpt = sessioneRepo.findById(sessioneId)
     		    .filter(sess -> !Boolean.TRUE.equals(sess.getIsDeleted()));
 
-        if (sOpt.isEmpty()) return new TotaliDto(0.0, 0.0, 0, 0, 0, 0);
+        if (sOpt.isEmpty()) return new TotaliDto(0.0, 0.0, 0, 0, 0, 0, 0, 0, 0);
 
         Sessione s = sOpt.get();
         List<Ordine> ordini = ordineRepo.findBySessioneId(sessioneId);
@@ -171,7 +177,7 @@ public class StatisticheServiceImpl implements StatisticheService {
 
             Long pid = o.getProdotto() != null ? o.getProdotto().getId() : null;
             if (pid != null) {
-                Optional<CostoProdotto> cp = costoRepo.findByProdottoId(pid);
+            	Optional<CostoProdotto> cp = costoRepo.findByProdottoIdIgnoreDelete(pid);
                 double costoUnit = cp.map(CostoProdotto::getCosto).orElse(0.0);
                 costi += costoUnit * qty;
             }
@@ -190,7 +196,7 @@ public class StatisticheServiceImpl implements StatisticheService {
         }
 
         double netto = lordo - costi;
-        return new TotaliDto(round(lordo), round(netto), sessioniAyce, sessioniCarta, aycePranzi, ayceCene);
+        return new TotaliDto(round(lordo), round(netto), sessioniAyce, sessioniCarta, aycePranzi, ayceCene, 0, 0, 0);
     }
 
 
