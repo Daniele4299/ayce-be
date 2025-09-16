@@ -13,5 +13,7 @@ public interface ProdottoService {
     Prodotto update(Long id, Prodotto prodotto);
     void delete(Long id);
     List<UltimoOrdineDto> getProdottiUtilizzatiUltimoServizio(LocalDateTime inizio, LocalDateTime fine);
+	List<Prodotto> findDeleted();
+	Prodotto restore(Long id);
     	
 }

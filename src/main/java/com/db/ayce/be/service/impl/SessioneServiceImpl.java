@@ -42,7 +42,9 @@ public class SessioneServiceImpl implements SessioneService {
 
     @Override
     public Sessione findById(Long id) {
-        return sessioneRepository.findById(id).orElse(null);
+        return sessioneRepository.findById(id)
+                .filter(s -> !Boolean.TRUE.equals(s.getIsDeleted()))
+                .orElse(null);
     }
 
     @Override
@@ -58,7 +60,11 @@ public class SessioneServiceImpl implements SessioneService {
 
     @Override
     public void delete(Long id) {
-        sessioneRepository.deleteById(id);
+        Sessione s = findById(id);
+        if (s != null) {
+            s.setIsDeleted(true);
+            sessioneRepository.save(s);
+        }
     }
 
     @Override
@@ -193,7 +199,7 @@ public class SessioneServiceImpl implements SessioneService {
     
     @Override
     public Sessione findAttivaByTavolo(Tavolo tavolo) {
-        return sessioneRepository.findByTavoloAndStato(tavolo, "ATTIVA").orElse(null);
+        return sessioneRepository.findByTavoloAndStatoAndIsDeletedFalse(tavolo, "ATTIVA").orElse(null);
     }
 
 	@Override
@@ -205,7 +211,19 @@ public class SessioneServiceImpl implements SessioneService {
 
 	@Override
 	public List<Sessione> findByPeriodo(LocalDateTime inizio, LocalDateTime fine) {
-	    return sessioneRepository.findByOrarioInizioBetween(inizio, fine);
+	    return sessioneRepository.findByOrarioInizioBetweenAndIsDeletedFalse(inizio, fine);
+	}
+
+	@Override
+	public List<Sessione> findEliminateByPeriodo(LocalDateTime inizio, LocalDateTime fine) {
+		return sessioneRepository.findByOrarioInizioBetweenAndIsDeletedTrue(inizio, fine);
+	}
+
+	@Override
+	public Sessione findByIdDeleted(Long id) {
+		 return sessioneRepository.findById(id)
+	                .filter(s -> Boolean.TRUE.equals(s.getIsDeleted()))
+	                .orElse(null);
 	}
 
 

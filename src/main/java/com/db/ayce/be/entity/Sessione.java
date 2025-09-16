@@ -2,9 +2,6 @@ package com.db.ayce.be.entity;
 
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -30,7 +27,6 @@ public class Sessione {
 
     @ManyToOne
     @JoinColumn(name = "id_tavolo")
-    @OnDelete(action = OnDeleteAction.CASCADE)
     private Tavolo tavolo;
 
     private LocalDateTime orarioInizio;
@@ -44,4 +40,7 @@ public class Sessione {
     
     @Column(name = "ultimo_ordine_inviato", nullable = true)
     private LocalDateTime ultimoOrdineInviato;
+    
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
 }

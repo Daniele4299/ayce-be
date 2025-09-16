@@ -1,22 +1,29 @@
 package com.db.ayce.be.service.impl;
 
-import com.db.ayce.be.entity.UtenteProdotto;
-import com.db.ayce.be.entity.UtenteProdottoId;
-import com.db.ayce.be.repository.UtenteProdottoRepository;
-import com.db.ayce.be.service.UtenteProdottoService;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import com.db.ayce.be.entity.UtenteProdotto;
+import com.db.ayce.be.entity.UtenteProdottoId;
+import com.db.ayce.be.repository.UtenteProdottoRepository;
+import com.db.ayce.be.service.ProdottoService;
+import com.db.ayce.be.service.UtenteProdottoService;
+import com.db.ayce.be.service.UtenteService;
 
 @Service
 public class UtenteProdottoServiceImpl implements UtenteProdottoService {
 
     private final UtenteProdottoRepository repository;
+    private final UtenteService utenteService;
+    private final ProdottoService prodottoService;
 
-    public UtenteProdottoServiceImpl(UtenteProdottoRepository repository) {
+    public UtenteProdottoServiceImpl(UtenteProdottoRepository repository, UtenteService utenteService, ProdottoService prodottoService) {
         this.repository = repository;
+		this.utenteService = utenteService;
+		this.prodottoService = prodottoService;
     }
 
     @Override
@@ -32,11 +39,22 @@ public class UtenteProdottoServiceImpl implements UtenteProdottoService {
     @Transactional
     @Override
     public UtenteProdotto setRiceveComanda(Long utenteId, Long prodottoId, boolean riceveComanda) {
+
         UtenteProdottoId id = new UtenteProdottoId(utenteId, prodottoId);
-        UtenteProdotto up = repository.findById(id)
-                .orElse(new UtenteProdotto(id, riceveComanda));
+
+        UtenteProdotto up = repository.findById(id).orElseGet(() -> {
+            UtenteProdotto nuovo = new UtenteProdotto();
+            nuovo.setId(id);
+            nuovo.setRiceveComanda(riceveComanda);
+            // assegna le entità correlate
+            nuovo.setUtente(utenteService.findById(utenteId)
+                    .orElseThrow(() -> new IllegalArgumentException("Utente non trovato: " + utenteId)));
+            nuovo.setProdotto(prodottoService.findById(prodottoId));
+            return nuovo;
+        });
+
         up.setRiceveComanda(riceveComanda);
-        return repository.save(up); // Hibernate fa UPDATE se esiste già
+        return repository.save(up);
     }
 
     @Transactional

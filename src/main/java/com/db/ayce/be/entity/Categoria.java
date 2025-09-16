@@ -24,4 +24,8 @@ public class Categoria {
 
     @Column(unique = true, nullable = false)
     private String nome;
+    
+    @Column(nullable = false)
+    private Boolean isDeleted;
+
 }

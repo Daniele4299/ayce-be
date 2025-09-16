@@ -7,5 +7,5 @@ public interface CategoriaService {
     List<Categoria> findAll();
     Categoria findById(Long id);
     Categoria save(Categoria categoria);
-    void delete(Long id);
+	void softDelete(Long id);
 }

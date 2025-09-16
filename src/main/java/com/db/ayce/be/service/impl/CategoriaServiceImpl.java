@@ -20,12 +20,13 @@ public class CategoriaServiceImpl implements CategoriaService {
 
     @Override
     public List<Categoria> findAll() {
-        return categoriaRepository.findAll();
+        return categoriaRepository.findAllByIsDeletedFalse(); // <-- filtra isDeleted
     }
 
     @Override
     public Categoria findById(Long id) {
-        return categoriaRepository.findById(id).orElseThrow(() -> new RuntimeException("Categoria non trovata con id: " + id));
+        return categoriaRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new RuntimeException("Categoria non trovata con id: " + id));
     }
 
     @Override
@@ -34,8 +35,10 @@ public class CategoriaServiceImpl implements CategoriaService {
     }
 
     @Override
-    public void delete(Long id) {
-        Categoria c = findById(id);
-        categoriaRepository.delete(c);
+    public void softDelete(Long id) {
+        Categoria c = categoriaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Categoria non trovata con id: " + id));
+        c.setIsDeleted(true);   // <-- cancellazione logica
+        categoriaRepository.save(c);
     }
 }

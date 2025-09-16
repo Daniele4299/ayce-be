@@ -139,7 +139,7 @@ public class ProdottoController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProdotto(@PathVariable Long id) {
-        prodottoService.delete(id);
+        prodottoService.delete(id); // adesso fa soft delete
         return ResponseEntity.noContent().build();
     }
     
@@ -214,5 +214,14 @@ public class ProdottoController {
     }
 
 
+    @GetMapping("/deleted")
+    public List<Prodotto> getDeletedProdotti() {
+        return prodottoService.findDeleted();
+    }
+
+    @PutMapping("/{id}/restore")
+    public Prodotto restoreProdotto(@PathVariable Long id) {
+        return prodottoService.restore(id);
+    }
 
 }

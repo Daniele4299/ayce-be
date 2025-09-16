@@ -25,8 +25,12 @@ public class CostoProdottoServiceImpl implements CostoProdottoService {
 
     @Override
     public List<CostoProdotto> getAll() {
-        return costoProdottoRepository.findAll();
+        return costoProdottoRepository.findAll()
+                .stream()
+                .filter(cp -> cp.getProdotto() != null && !cp.getProdotto().getIsDeleted())
+                .toList();
     }
+
 
     @Override
     public CostoProdotto saveOrUpdate(Long prodottoId, Double costo) {
@@ -34,6 +38,10 @@ public class CostoProdottoServiceImpl implements CostoProdottoService {
 
         Prodotto prodotto = prodottoRepository.findById(prodottoId)
                 .orElseThrow(() -> new RuntimeException("Prodotto non trovato"));
+
+        if (prodotto.getIsDeleted()) {
+            throw new RuntimeException("Impossibile modificare un prodotto cancellato");
+        }
 
         CostoProdotto cp;
         if (existing.isPresent()) {

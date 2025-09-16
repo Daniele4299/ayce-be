@@ -25,5 +25,9 @@ public class Tavolo {
     private Integer numero;
 
     private Boolean attivo;
+    
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
+
 
 }

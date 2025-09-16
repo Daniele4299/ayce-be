@@ -103,6 +103,23 @@ public class SessioneController {
 
         return sessioneService.findByPeriodo(inizio, fine);
     }
-
     
+    @PutMapping("/{id}/ripristina")
+    public ResponseEntity<Sessione> ripristina(@PathVariable Long id) {
+        Sessione s = sessioneService.findByIdDeleted(id);
+        if (s == null) return ResponseEntity.notFound().build();
+        s.setIsDeleted(false);
+        sessioneService.save(s);
+        return ResponseEntity.ok(s);
+    }
+    
+    @GetMapping("/eliminate/by-day")
+    public List<Sessione> getSessioniEliminateByDay(@RequestParam String data) {
+        LocalDate giorno = LocalDate.parse(data);
+        LocalDateTime inizio = giorno.atStartOfDay();
+        LocalDateTime fine = giorno.plusDays(1).atStartOfDay();
+        return sessioneService.findEliminateByPeriodo(inizio, fine);
+    }
+
+
 }

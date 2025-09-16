@@ -103,8 +103,8 @@ public class StatisticheServiceImpl implements StatisticheService {
         LocalDateTime[] range = resolveRange(period, from, to);
         LocalDateTime start = range[0], end = range[1];
 
-        List<Ordine> ordini = ordineRepo.findByOrarioBetween(start, end);
-        List<Sessione> sessioni = sessioneRepo.findByOrarioInizioBetween(start, end);
+        List<Ordine> ordini = ordineRepo.findByOrarioBetweenAndSessioneIsDeletedFalse(start, end);
+        List<Sessione> sessioni = sessioneRepo.findByOrarioInizioBetweenAndIsDeletedFalse(start, end);
 
         double totaleLordo = 0.0;
         double totaleCosti = 0.0;
@@ -149,7 +149,9 @@ public class StatisticheServiceImpl implements StatisticheService {
 
     @Override
     public TotaliDto calcolaTotaliPerSessioneId(Long sessioneId) {
-        Optional<Sessione> sOpt = sessioneRepo.findById(sessioneId);
+    	Optional<Sessione> sOpt = sessioneRepo.findById(sessioneId)
+    		    .filter(sess -> !Boolean.TRUE.equals(sess.getIsDeleted()));
+
         if (sOpt.isEmpty()) return new TotaliDto(0.0, 0.0, 0, 0, 0, 0);
 
         Sessione s = sOpt.get();
@@ -193,30 +195,22 @@ public class StatisticheServiceImpl implements StatisticheService {
 
 
 
-	@Override
-	public List<ProductSalesDto> prodottiPiùVenduti(String period, LocalDateTime from, LocalDateTime to, int limit) {
-	    LocalDateTime[] r = resolveRange(period, from, to);
-	    return ordineRepo.findTopProductsByPeriod(r[0], r[1], PageRequest.of(0, limit))
-	            .stream()
-	            .filter(p -> prodottoRepo.existsById(p.getProdottoId())) // <-- filtra solo prodotti ancora esistenti
-	            .limit(limit)
-	            .collect(Collectors.toList());
-	}
-	
-	@Override
-	public List<ProductSalesDto> prodottiMenoVenduti(String period, LocalDateTime from, LocalDateTime to, int limit) {
-	    LocalDateTime[] r = resolveRange(period, from, to);
-	    return ordineRepo.findBottomProductsByPeriod(r[0], r[1], PageRequest.of(0, limit))
-	            .stream()
-	            .filter(p -> prodottoRepo.existsById(p.getProdottoId())) // <-- filtra solo prodotti ancora esistenti
-	            .limit(limit)
-	            .collect(Collectors.toList());
-	}
+    @Override
+    public List<ProductSalesDto> prodottiMenoVenduti(String period, LocalDateTime from, LocalDateTime to, int limit) {
+        LocalDateTime[] range = resolveRange(period, from, to);
+        return ordineRepo.findBottomProductsByPeriod(range[0], range[1], PageRequest.of(0, limit));
+    }
+
+    @Override
+    public List<ProductSalesDto> prodottiPiùVenduti(String period, LocalDateTime from, LocalDateTime to, int limit) {
+        LocalDateTime[] range = resolveRange(period, from, to);
+        return ordineRepo.findTopProductsByPeriod(range[0], range[1], PageRequest.of(0, limit));
+    }
 
     @Override
     public Integer contaSessioni(String period, LocalDateTime from, LocalDateTime to) {
         LocalDateTime[] r = resolveRange(period, from, to);
-        return sessioneRepo.findByOrarioInizioBetween(r[0], r[1]).size();
+        return sessioneRepo.findByOrarioInizioBetweenAndIsDeletedFalse(r[0], r[1]).size();
     }
 
     @Override

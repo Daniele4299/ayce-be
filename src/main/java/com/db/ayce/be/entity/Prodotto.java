@@ -49,4 +49,7 @@ public class Prodotto {
 
     @Column(name = "islimitedpartecipanti", nullable = false)
     private Boolean isLimitedPartecipanti = false;
+    
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
 }

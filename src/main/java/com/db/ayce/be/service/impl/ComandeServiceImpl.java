@@ -40,9 +40,12 @@ public class ComandeServiceImpl implements ComandeService {
 	            ? utenteProdottoRepository.findProdottoIdsByUtenteIdAndRiceveComandaTrue(id)
 	            : utenteProdottoRepository.findProdottoIdsByUtenteId(id);
 
-	    List<Sessione> sessioneList = sessioneRepository.findByStatoIgnoreCase("ATTIVA");
+	    // Lista sessioni attive non cancellate
+	    List<Sessione> sessioneList = sessioneRepository.findByStatoIgnoreCaseAndIsDeletedFalse("ATTIVA");
 
+	    // Poi tutti gli ordini filtrati restano uguali
 	    List<Ordine> ordiniRaw = ordineRepository.findBySessioneIn(sessioneList);
+	    
 
 	    List<Ordine> ordiniFiltrati = ordiniRaw.stream()
 	        .filter(o -> (!soloAssegnati || productsList.contains(o.getProdotto().getId())))

@@ -20,12 +20,13 @@ public class ProdottoServiceImpl implements ProdottoService {
 
     @Override
     public List<Prodotto> findAll() {
-        return prodottoRepository.findAll();
+        return prodottoRepository.findByIsDeletedFalse();
     }
 
     @Override
     public Prodotto findById(Long id) {
-        return prodottoRepository.findById(id).orElse(null);
+        return prodottoRepository.findByIdAndIsDeletedFalse(id)
+                .orElse(null);
     }
 
     @Override
@@ -41,12 +42,29 @@ public class ProdottoServiceImpl implements ProdottoService {
 
     @Override
     public void delete(Long id) {
-        prodottoRepository.deleteById(id);
+        Prodotto p = findById(id);
+        if (p != null) {
+            p.setIsDeleted(true);
+            prodottoRepository.save(p);
+        }
     }
 
 	@Override
 	public List<UltimoOrdineDto> getProdottiUtilizzatiUltimoServizio(LocalDateTime inizio, LocalDateTime fine) {
 	    return prodottoRepository.getQuantitaOrdinataGiornata(inizio, fine);
 	}
+
+	@Override
+	public List<Prodotto> findDeleted() {
+	    return prodottoRepository.findByIsDeletedTrue();
+	}
+
+	@Override
+	public Prodotto restore(Long id) {
+	    Prodotto p = prodottoRepository.findById(id).orElseThrow(() -> new RuntimeException("Prodotto non trovato"));
+	    p.setIsDeleted(false);
+	    return prodottoRepository.save(p);
+	}
+
 
 }

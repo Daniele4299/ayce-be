@@ -65,13 +65,14 @@ public class CategoriaController {
 
 	@DeleteMapping("/{id}")
 	public ResponseEntity<Void> deleteCategoria(@PathVariable Long id) {
-		authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN);
-		Categoria categoria = categoriaService.findById(id);
-		if (categoria != null) {
-			categoriaService.delete(id);
-			return ResponseEntity.noContent().build();
-		} else {
-			return ResponseEntity.notFound().build();
-		}
+	    authUtils.getCurrentUserOrThrow(Constants.ROLE_ADMIN);
+	    Categoria categoria = categoriaService.findById(id);
+	    if (categoria != null) {
+	        categoriaService.softDelete(id);  // cancellazione logica
+	        return ResponseEntity.noContent().build();
+	    } else {
+	        return ResponseEntity.notFound().build();
+	    }
 	}
+
 }

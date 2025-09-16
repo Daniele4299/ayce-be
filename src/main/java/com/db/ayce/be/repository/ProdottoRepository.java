@@ -2,6 +2,7 @@ package com.db.ayce.be.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -23,5 +24,13 @@ public interface ProdottoRepository extends JpaRepository<Prodotto, Long> {
 		        @Param("fine") LocalDateTime fine
 		);
 
-	
+	List<Prodotto> findByIsDeletedFalse();
+
+    // Optional: se vuoi findById filtrato
+    Optional<Prodotto> findByIdAndIsDeletedFalse(Long id);
+    
+    // nuovo helper per verificare se esiste ed è attivo
+    boolean existsByIdAndIsDeletedFalse(Long id);
+
+	List<Prodotto> findByIsDeletedTrue();
 }

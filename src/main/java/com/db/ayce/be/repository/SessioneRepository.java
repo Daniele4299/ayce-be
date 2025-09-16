@@ -10,7 +10,13 @@ import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.entity.Tavolo;
 
 public interface SessioneRepository extends JpaRepository<Sessione, Long> {
-	List<Sessione> findByStatoIgnoreCase(String stato);
-	Optional<Sessione> findByTavoloAndStato(Tavolo tavolo, String stato);
-	List<Sessione> findByOrarioInizioBetween(LocalDateTime inizio, LocalDateTime fine);
+    
+    List<Sessione> findByStatoIgnoreCaseAndIsDeletedFalse(String stato);
+
+    Optional<Sessione> findByTavoloAndStatoAndIsDeletedFalse(Tavolo tavolo, String stato);
+
+    List<Sessione> findByOrarioInizioBetweenAndIsDeletedFalse(LocalDateTime inizio, LocalDateTime fine);
+
+	List<Sessione> findByOrarioInizioBetweenAndIsDeletedTrue(LocalDateTime inizio, LocalDateTime fine);
 }
+

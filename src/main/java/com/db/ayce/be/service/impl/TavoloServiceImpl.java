@@ -21,18 +21,33 @@ public class TavoloServiceImpl implements TavoloService {
 
     @Override
     public List<Tavolo> findAll() {
-        return tavoloRepository.findAll();
+        return tavoloRepository.findByIsDeletedFalse();
     }
 
     @Override
     public Tavolo findById(Integer id) {
-        return tavoloRepository.findById(id).orElse(null);
+        return tavoloRepository.findById(id)
+            .filter(t -> !Boolean.TRUE.equals(t.getIsDeleted()))
+            .orElse(null);
     }
 
     @Override
     public Tavolo save(Tavolo tavolo) {
+        if (tavolo.getId() == null) { // nuovo tavolo
+            Tavolo existing = tavoloRepository.findByNumeroAndIsDeletedTrue(tavolo.getNumero());
+            if (existing != null) {
+                if (Boolean.TRUE.equals(existing.getIsDeleted())) {
+                    // Riattiva il tavolo eliminato
+                    existing.setIsDeleted(false);
+                    return tavoloRepository.save(existing);
+                } else {
+                    throw new IllegalArgumentException("Esiste già un tavolo con questo numero");
+                }
+            }
+        }
         return tavoloRepository.save(tavolo);
     }
+
 
     @Override
     public Tavolo update(Integer id, Tavolo tavolo) {
@@ -42,17 +57,21 @@ public class TavoloServiceImpl implements TavoloService {
 
     @Override
     public void delete(Integer id) {
-        tavoloRepository.deleteById(id);
+        tavoloRepository.findById(id).ifPresent(t -> {
+            t.setIsDeleted(true);
+            tavoloRepository.save(t);
+        });
     }
 
-	@Override
-	public Tavolo findByNumero(Integer numero) {
-		return tavoloRepository.findByNumero(numero);
-	}
+    @Override
+    public Tavolo findByNumero(Integer numero) {
+        return tavoloRepository.findByNumeroAndIsDeletedFalse(numero);
+    }
 
-	@Override
-	public List<Ordine> findBySessione(Long sessioneId) {
-	    return ordineRepository.findBySessioneId(sessioneId);
-	}
+    @Override
+    public List<Ordine> findBySessione(Long sessioneId) {
+        return ordineRepository.findBySessioneId(sessioneId); // già filtra sessioni isDeleted=false
+    }
+
 
 }

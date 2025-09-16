@@ -11,10 +11,14 @@ import com.db.ayce.be.entity.UtenteProdottoId;
 public interface UtenteProdottoRepository extends JpaRepository<UtenteProdotto, UtenteProdottoId> {
     List<UtenteProdotto> findById_UtenteId(Long utenteId);
     
-    @Query("SELECT up.id.prodottoId FROM UtenteProdotto up WHERE up.id.utenteId = :utenteId AND up.riceveComanda = true")
-    List<Long> findProdottoIdsByUtenteIdAndRiceveComandaTrue(Long utenteId);
-    
-    @Query("SELECT up.id.prodottoId FROM UtenteProdotto up WHERE up.id.utenteId = :utenteId")
-    List<Long> findProdottoIdsByUtenteId(Long utenteId);
+    @Query("SELECT up.id.prodottoId FROM UtenteProdotto up " +
+    	       "WHERE up.id.utenteId = :utenteId AND up.riceveComanda = true " +
+    	       "AND up.prodotto.isDeleted = false")
+    	List<Long> findProdottoIdsByUtenteIdAndRiceveComandaTrue(Long utenteId);
+
+    	@Query("SELECT up.id.prodottoId FROM UtenteProdotto up " +
+    	       "WHERE up.id.utenteId = :utenteId AND up.prodotto.isDeleted = false")
+    	List<Long> findProdottoIdsByUtenteId(Long utenteId);
+
 
 }

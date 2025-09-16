@@ -18,4 +18,6 @@ public interface SessioneService {
     Sessione findAttivaByTavolo(Tavolo tavolo);
 	Sessione findAttivaById(Long sessioneId);
 	List<Sessione> findByPeriodo(LocalDateTime inizio, LocalDateTime fine);
+	List<Sessione> findEliminateByPeriodo(LocalDateTime inizio, LocalDateTime fine);
+	Sessione findByIdDeleted(Long id);
 }

@@ -32,6 +32,9 @@ public class Utente implements UserDetails {
 
     @Column(nullable = false)
     private Integer livello;
+    
+    @Column(nullable = false)
+    private Boolean isDeleted;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
