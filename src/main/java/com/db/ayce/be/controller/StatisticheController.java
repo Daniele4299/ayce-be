@@ -1,12 +1,16 @@
 package com.db.ayce.be.controller;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.db.ayce.be.dto.ProductSalesDto;
 import com.db.ayce.be.dto.SessionDeltaDto;
@@ -25,9 +29,9 @@ public class StatisticheController {
     public ResponseEntity<TotaliDto> getTotali(
             @RequestParam(value = "period", required = false) String period,
             @RequestParam(value = "from", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(value = "to", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
         TotaliDto dto = statsService.calcolaTotali(period, from, to);
         return ResponseEntity.ok(dto);
@@ -38,9 +42,9 @@ public class StatisticheController {
     public ResponseEntity<Integer> contaSessioni(
             @RequestParam(value = "period", required = false) String period,
             @RequestParam(value = "from", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(value = "to", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
         Integer count = statsService.contaSessioni(period, from, to);
         return ResponseEntity.ok(count);
@@ -52,9 +56,9 @@ public class StatisticheController {
             @RequestParam(value = "period", required = false) String period,
             @RequestParam(value = "limit", defaultValue = "10") int limit,
             @RequestParam(value = "from", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(value = "to", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
         List<ProductSalesDto> list = statsService.prodottiPiùVenduti(period, from, to, limit);
         return ResponseEntity.ok(list);
@@ -66,9 +70,9 @@ public class StatisticheController {
             @RequestParam(value = "period", required = false) String period,
             @RequestParam(value = "limit", defaultValue = "10") int limit,
             @RequestParam(value = "from", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(value = "to", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
         List<ProductSalesDto> list = statsService.prodottiMenoVenduti(period, from, to, limit);
         return ResponseEntity.ok(list);

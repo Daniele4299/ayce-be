@@ -1,6 +1,6 @@
 package com.db.ayce.be.service;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 import com.db.ayce.be.dto.ProductSalesDto;
@@ -8,13 +8,13 @@ import com.db.ayce.be.dto.SessionDeltaDto;
 import com.db.ayce.be.dto.TotaliDto;
 
 public interface StatisticheService {
-    TotaliDto calcolaTotali(String period, LocalDateTime from, LocalDateTime to);
+    TotaliDto calcolaTotali(String period, LocalDate from, LocalDate to);
 
-    Integer contaSessioni(String period, LocalDateTime from, LocalDateTime to);
+    Integer contaSessioni(String period, LocalDate from, LocalDate to);
 
-    List<ProductSalesDto> prodottiPiùVenduti(String period, LocalDateTime from, LocalDateTime to, int limit);
+    List<ProductSalesDto> prodottiPiùVenduti(String period, LocalDate from, LocalDate to, int limit);
 
-    List<ProductSalesDto> prodottiMenoVenduti(String period, LocalDateTime from, LocalDateTime to, int limit);
+    List<ProductSalesDto> prodottiMenoVenduti(String period, LocalDate from, LocalDate to, int limit);
 
     SessionDeltaDto deltaSessione(Long sessioneId);
 

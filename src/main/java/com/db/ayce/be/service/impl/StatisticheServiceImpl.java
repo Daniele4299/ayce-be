@@ -17,13 +17,12 @@ import com.db.ayce.be.dto.ProductSalesDto;
 import com.db.ayce.be.dto.SessionDeltaDto;
 import com.db.ayce.be.dto.TotaliDto;
 import com.db.ayce.be.entity.CostoProdotto;
-import com.db.ayce.be.entity.Impostazioni;
 import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.repository.CostoProdottoRepository;
-import com.db.ayce.be.repository.ImpostazioniRepository;
 import com.db.ayce.be.repository.OrdineRepository;
 import com.db.ayce.be.repository.SessioneRepository;
+import com.db.ayce.be.service.ImpostazioniService;
 import com.db.ayce.be.service.StatisticheService;
 
 @Service
@@ -40,47 +39,44 @@ public class StatisticheServiceImpl implements StatisticheService {
     private CostoProdottoRepository costoRepo;
 
     @Autowired
-    private ImpostazioniRepository impostazioniRepo;
+    private ImpostazioniService impostazioniService;
 
-    private LocalDateTime[] resolveRange(String period, LocalDateTime from, LocalDateTime to) {
-        if (from != null && to != null) return new LocalDateTime[]{from, to};
-        LocalDateTime now = LocalDateTime.now();
+    private LocalDateTime[] resolveRange(String period, LocalDate from, LocalDate to) {
+        if (from != null && to != null) 
+            return new LocalDateTime[]{from.atStartOfDay(), to.atTime(LocalTime.MAX)};
+        
+        LocalDate today = LocalDate.now();
         String p = period == null ? "all" : period.toLowerCase();
+
         switch (p) {
             case "day": case "giorno":
-                LocalDate today = now.toLocalDate();
                 return new LocalDateTime[]{today.atStartOfDay(), today.atTime(LocalTime.MAX)};
             case "week": case "settimana":
-                LocalDate startWeek = now.toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+                LocalDate startWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
                 LocalDate endWeek = startWeek.plusDays(6);
                 return new LocalDateTime[]{startWeek.atStartOfDay(), endWeek.atTime(LocalTime.MAX)};
             case "month": case "mese":
-                LocalDate firstMonth = now.toLocalDate().withDayOfMonth(1);
-                LocalDate lastMonth = now.toLocalDate().with(TemporalAdjusters.lastDayOfMonth());
+                LocalDate firstMonth = today.withDayOfMonth(1);
+                LocalDate lastMonth = today.with(TemporalAdjusters.lastDayOfMonth());
                 return new LocalDateTime[]{firstMonth.atStartOfDay(), lastMonth.atTime(LocalTime.MAX)};
             case "year": case "anno":
-                LocalDate firstYear = now.toLocalDate().withDayOfYear(1);
-                LocalDate lastYear = now.toLocalDate().with(TemporalAdjusters.lastDayOfYear());
+                LocalDate firstYear = today.withDayOfYear(1);
+                LocalDate lastYear = today.with(TemporalAdjusters.lastDayOfYear());
                 return new LocalDateTime[]{firstYear.atStartOfDay(), lastYear.atTime(LocalTime.MAX)};
             default:
-                return new LocalDateTime[]{LocalDateTime.of(1970,1,1,0,0), now.with(LocalTime.MAX)};
+                return new LocalDateTime[]{LocalDate.of(1970,1,1).atStartOfDay(), today.atTime(LocalTime.MAX)};
         }
     }
 
     private boolean isPranzo(Sessione s) {
         try {
-            Optional<Impostazioni> impPranzo = impostazioniRepo.findById("ora_inizio_pranzo");
-            Optional<Impostazioni> impCena = impostazioniRepo.findById("ora_inizio_cena");
-            if (impPranzo.isPresent() && impCena.isPresent() && s.getOrarioInizio() != null) {
-                int startPranzo = Integer.parseInt(impPranzo.get().getValore());
-                int startCena = Integer.parseInt(impCena.get().getValore());
+            int startPranzo = impostazioniService.getIntValue("ora_inizio_pranzo", 3);
+            int startCena = impostazioniService.getIntValue("ora_inizio_cena", 16);
+            if (s.getOrarioInizio() != null) {
                 int h = s.getOrarioInizio().getHour();
                 return (h >= startPranzo && h < startCena);
-            } else if (s.getOrarioInizio() != null) {
-                int h = s.getOrarioInizio().getHour();
-                return h >= 6 && h < 16;
             } else {
-                return true;
+                return true; // default
             }
         } catch (Exception ex) {
             if (s.getOrarioInizio() == null) return true;
@@ -89,12 +85,13 @@ public class StatisticheServiceImpl implements StatisticheService {
         }
     }
 
+
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
 
     @Override
-    public TotaliDto calcolaTotali(String period, LocalDateTime from, LocalDateTime to) {
+    public TotaliDto calcolaTotali(String period, LocalDate from, LocalDate to) {
         LocalDateTime[] range = resolveRange(period, from, to);
         LocalDateTime start = range[0], end = range[1];
 
@@ -139,7 +136,10 @@ public class StatisticheServiceImpl implements StatisticheService {
                     personeAyceCena += partecipanti;
                 }
 
-                double quota = isPranzo(s) ? 20.0 : 30.0;
+                double quota = isPranzo(s)
+                        ? impostazioniService.getDoubleValue("prezzo_ayce_pranzo", 20.0)
+                        : impostazioniService.getDoubleValue("prezzo_ayce_cena", 30.0);
+
                 totaleLordo += quota * partecipanti;
             } else {
             	sessioniCarta++;
@@ -188,7 +188,10 @@ public class StatisticheServiceImpl implements StatisticheService {
             if (isPranzo(s)) aycePranzi = 1;
             else ayceCene = 1;
 
-            double quota = isPranzo(s) ? 20.0 : 30.0;
+            double quota = isPranzo(s)
+                    ? impostazioniService.getDoubleValue("prezzo_ayce_pranzo", 20.0)
+                    : impostazioniService.getDoubleValue("prezzo_ayce_cena", 30.0);
+
             int partecipanti = s.getNumeroPartecipanti() != null ? s.getNumeroPartecipanti() : 0;
             lordo += quota * partecipanti;
         } else {
@@ -202,19 +205,19 @@ public class StatisticheServiceImpl implements StatisticheService {
 
 
     @Override
-    public List<ProductSalesDto> prodottiMenoVenduti(String period, LocalDateTime from, LocalDateTime to, int limit) {
+    public List<ProductSalesDto> prodottiMenoVenduti(String period, LocalDate from, LocalDate to, int limit) {
         LocalDateTime[] range = resolveRange(period, from, to);
         return ordineRepo.findBottomProductsByPeriod(range[0], range[1], PageRequest.of(0, limit));
     }
 
     @Override
-    public List<ProductSalesDto> prodottiPiùVenduti(String period, LocalDateTime from, LocalDateTime to, int limit) {
+    public List<ProductSalesDto> prodottiPiùVenduti(String period, LocalDate from, LocalDate to, int limit) {
         LocalDateTime[] range = resolveRange(period, from, to);
         return ordineRepo.findTopProductsByPeriod(range[0], range[1], PageRequest.of(0, limit));
     }
 
     @Override
-    public Integer contaSessioni(String period, LocalDateTime from, LocalDateTime to) {
+    public Integer contaSessioni(String period, LocalDate from, LocalDate to) {
         LocalDateTime[] r = resolveRange(period, from, to);
         return sessioneRepo.findByOrarioInizioBetweenAndIsDeletedFalse(r[0], r[1]).size();
     }

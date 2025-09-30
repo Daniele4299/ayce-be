@@ -1,5 +1,6 @@
 package com.db.ayce.be.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,6 +98,14 @@ public class OrdineController {
 
 	    ordine.setSessione(sessione);
 	    ordine.setProdotto(prodotto);
+	    
+	    // FORZA la data server-side: non fidarti di quella del client
+        if (ordine.getOrario() == null) {
+            ordine.setOrario(LocalDateTime.now());
+        } else {
+            // opzionale: IGNORA sempre il valore client per sicurezza
+            ordine.setOrario(LocalDateTime.now());
+        }
 
 	    Ordine o = ordineService.save(ordine);
 	    cucinaWebSocketService.notifyNewOrder(null);

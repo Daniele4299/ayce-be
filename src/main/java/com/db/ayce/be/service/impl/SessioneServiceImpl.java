@@ -17,6 +17,7 @@ import com.db.ayce.be.entity.Ordine;
 import com.db.ayce.be.entity.Sessione;
 import com.db.ayce.be.entity.Tavolo;
 import com.db.ayce.be.repository.SessioneRepository;
+import com.db.ayce.be.service.ImpostazioniService;
 import com.db.ayce.be.service.OrdineService;
 import com.db.ayce.be.service.SessioneService;
 import com.lowagie.text.Document;
@@ -30,9 +31,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SessioneServiceImpl implements SessioneService {
 
-    private final SessioneRepository sessioneRepository;
+   private final SessioneRepository sessioneRepository;
    @Autowired
    OrdineService ordineService;
+   private final ImpostazioniService impostazioniService;
 
 
     @Override
@@ -122,7 +124,13 @@ public class SessioneServiceImpl implements SessioneService {
             // Quota AYCE, se attiva, va nella tabella “prezzata”
             if (Boolean.TRUE.equals(sessione.getIsAyce())) {
                 int ora = sessione.getOrarioInizio().getHour();
-                double prezzoAyce = (ora >= 2 && ora < 16) ? 20.0 : 30.0;
+
+                int oraInizioPranzo = impostazioniService.getIntValue("ora_inizio_pranzo", 3);
+                int oraInizioCena = impostazioniService.getIntValue("ora_inizio_cena", 16);
+                double prezzoPranzo = impostazioniService.getDoubleValue("prezzo_ayce_pranzo", 20.0);
+                double prezzoCena = impostazioniService.getDoubleValue("prezzo_ayce_cena", 30.0);
+
+                double prezzoAyce = (ora >= oraInizioPranzo && ora < oraInizioCena) ? prezzoPranzo : prezzoCena;
                 double totaleAyce = prezzoAyce * sessione.getNumeroPartecipanti();
                 totale += totaleAyce;
 

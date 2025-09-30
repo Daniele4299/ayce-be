@@ -72,4 +72,14 @@ public class ImpostazioniServiceImpl implements ImpostazioniService {
             return defaultValue;
         }
     }
+    
+    @Override
+    public Double getDoubleValue(String chiave, double defaultValue) {
+        try {
+            return Double.parseDouble(cache.get(chiave).getValore());
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
 }

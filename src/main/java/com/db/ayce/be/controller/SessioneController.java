@@ -49,6 +49,15 @@ public class SessioneController {
         if (attiva != null) {
             return ResponseEntity.status(409).build();
         }
+
+        // FORZA la data server-side: non fidarti di quella del client
+        if (sessione.getOrarioInizio() == null) {
+            sessione.setOrarioInizio(LocalDateTime.now());
+        } else {
+            // opzionale: IGNORA sempre il valore client per sicurezza
+            sessione.setOrarioInizio(LocalDateTime.now());
+        }
+
         Sessione nuova = sessioneService.save(sessione);
         return ResponseEntity.ok(nuova);
     }

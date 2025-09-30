@@ -18,4 +18,6 @@ public interface ImpostazioniService {
 	Integer getIntValue(String string, int i);
 	
 	boolean getBooleanValue(String chiave, boolean defaultValue);
+
+	Double getDoubleValue(String chiave, double defaultValue);
 }
