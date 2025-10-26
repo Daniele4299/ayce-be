@@ -239,6 +239,7 @@ public class TavoloWebSocketController {
 
         payload.put("ordine", ordineTemp);
         payload.put("lastOrder", sessione.getUltimoOrdineInviato()); // null ok
+        payload.put("dateNow", LocalDateTime.now()); // <-- ORA CORRENTE LOCALE ITALIANA
         payload.put("cooldownMinuti", impostazioniService.getIntValue("tempo_cooldown", 15));
         payload.put("maxPortatePerPersona", impostazioniService.getIntValue("portate_per_persona", 5));
         payload.put("numeroPartecipanti", sessione.getNumeroPartecipanti());
